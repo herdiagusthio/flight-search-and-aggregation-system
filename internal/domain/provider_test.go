@@ -5,72 +5,45 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/mock/gomock"
 )
 
-// mockFlightProvider is a test implementation of FlightProvider.
-type mockFlightProvider struct {
-	name    string
-	flights []Flight
-	err     error
-}
-
-func (m *mockFlightProvider) Name() string {
-	return m.name
-}
-
-func (m *mockFlightProvider) Search(ctx context.Context, criteria SearchCriteria) ([]Flight, error) {
-	if m.err != nil {
-		return nil, m.err
-	}
-	return m.flights, nil
-}
-
 func TestProviderRegistry(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
 	tests := []struct {
-		name           string
-		providers      []*mockFlightProvider
-		wantCount      int
-		wantNames      []string
-		getByName      string
-		wantGetResult  bool
+		name          string
+		providerNames []string
+		wantCount     int
+		getByName     string
+		wantGetResult bool
 	}{
 		{
-			name:           "empty registry",
-			providers:      nil,
-			wantCount:      0,
-			wantNames:      []string{},
-			getByName:      "garuda",
-			wantGetResult:  false,
+			name:          "empty registry",
+			providerNames: nil,
+			wantCount:     0,
+			getByName:     "garuda",
+			wantGetResult: false,
 		},
 		{
-			name: "single provider",
-			providers: []*mockFlightProvider{
-				{name: "garuda"},
-			},
+			name:          "single provider",
+			providerNames: []string{"garuda"},
 			wantCount:     1,
-			wantNames:     []string{"garuda"},
 			getByName:     "garuda",
 			wantGetResult: true,
 		},
 		{
-			name: "multiple providers",
-			providers: []*mockFlightProvider{
-				{name: "garuda"},
-				{name: "lionair"},
-				{name: "airasia"},
-			},
+			name:          "multiple providers",
+			providerNames: []string{"garuda", "lionair", "airasia"},
 			wantCount:     3,
-			wantNames:     []string{"garuda", "lionair", "airasia"},
 			getByName:     "lionair",
 			wantGetResult: true,
 		},
 		{
-			name: "get non-existent provider",
-			providers: []*mockFlightProvider{
-				{name: "garuda"},
-			},
+			name:          "get non-existent provider",
+			providerNames: []string{"garuda"},
 			wantCount:     1,
-			wantNames:     []string{"garuda"},
 			getByName:     "nonexistent",
 			wantGetResult: false,
 		},
@@ -80,9 +53,11 @@ func TestProviderRegistry(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			registry := NewProviderRegistry()
 
-			// Register providers
-			for _, p := range tt.providers {
-				registry.Register(p)
+			// Register mock providers
+			for _, name := range tt.providerNames {
+				mock := NewMockFlightProvider(ctrl)
+				mock.EXPECT().Name().Return(name).AnyTimes()
+				registry.Register(mock)
 			}
 
 			// Verify count
@@ -92,7 +67,7 @@ func TestProviderRegistry(t *testing.T) {
 			// Verify names
 			names := registry.Names()
 			assert.Len(t, names, tt.wantCount)
-			for _, wantName := range tt.wantNames {
+			for _, wantName := range tt.providerNames {
 				assert.Contains(t, names, wantName)
 			}
 
@@ -117,10 +92,20 @@ func TestProviderRegistry_RegisterNil(t *testing.T) {
 }
 
 func TestProviderRegistry_RegisterDuplicate(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
 	registry := NewProviderRegistry()
 
-	provider1 := &mockFlightProvider{name: "garuda", flights: []Flight{{ID: "1"}}}
-	provider2 := &mockFlightProvider{name: "garuda", flights: []Flight{{ID: "2"}}}
+	// First provider with ID "1"
+	provider1 := NewMockFlightProvider(ctrl)
+	provider1.EXPECT().Name().Return("garuda").AnyTimes()
+	provider1.EXPECT().Search(gomock.Any(), gomock.Any()).Return([]Flight{{ID: "1"}}, nil).AnyTimes()
+
+	// Second provider with ID "2" (should replace first)
+	provider2 := NewMockFlightProvider(ctrl)
+	provider2.EXPECT().Name().Return("garuda").AnyTimes()
+	provider2.EXPECT().Search(gomock.Any(), gomock.Any()).Return([]Flight{{ID: "2"}}, nil).AnyTimes()
 
 	registry.Register(provider1)
 	registry.Register(provider2) // Should replace
@@ -136,64 +121,53 @@ func TestProviderRegistry_RegisterDuplicate(t *testing.T) {
 }
 
 func TestFlightProvider_Interface(t *testing.T) {
-	// This test verifies that mockFlightProvider implements FlightProvider
-	var _ FlightProvider = (*mockFlightProvider)(nil)
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	// This test verifies that MockFlightProvider implements FlightProvider
+	var _ FlightProvider = NewMockFlightProvider(ctrl)
 }
 
 func TestMockFlightProvider_Search(t *testing.T) {
-	tests := []struct {
-		name         string
-		provider     *mockFlightProvider
-		criteria     SearchCriteria
-		wantFlights  int
-		wantErr      bool
-	}{
-		{
-			name: "returns flights successfully",
-			provider: &mockFlightProvider{
-				name: "garuda",
-				flights: []Flight{
-					{ID: "1", FlightNumber: "GA-123"},
-					{ID: "2", FlightNumber: "GA-456"},
-				},
-			},
-			criteria:    SearchCriteria{Origin: "CGK", Destination: "DPS"},
-			wantFlights: 2,
-			wantErr:     false,
-		},
-		{
-			name: "returns empty slice when no flights",
-			provider: &mockFlightProvider{
-				name:    "lionair",
-				flights: []Flight{},
-			},
-			criteria:    SearchCriteria{Origin: "CGK", Destination: "DPS"},
-			wantFlights: 0,
-			wantErr:     false,
-		},
-		{
-			name: "returns error when provider fails",
-			provider: &mockFlightProvider{
-				name: "airasia",
-				err:  ErrProviderTimeout,
-			},
-			criteria:    SearchCriteria{Origin: "CGK", Destination: "DPS"},
-			wantFlights: 0,
-			wantErr:     true,
-		},
-	}
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ctx := context.Background()
-			flights, err := tt.provider.Search(ctx, tt.criteria)
+	t.Run("returns flights successfully", func(t *testing.T) {
+		mock := NewMockFlightProvider(ctrl)
+		mock.EXPECT().Name().Return("garuda").AnyTimes()
+		mock.EXPECT().Search(gomock.Any(), gomock.Any()).Return([]Flight{
+			{ID: "1", FlightNumber: "GA-123"},
+			{ID: "2", FlightNumber: "GA-456"},
+		}, nil)
 
-			if tt.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-				assert.Len(t, flights, tt.wantFlights)
-			}
-		})
-	}
+		ctx := context.Background()
+		flights, err := mock.Search(ctx, SearchCriteria{Origin: "CGK", Destination: "DPS"})
+
+		assert.NoError(t, err)
+		assert.Len(t, flights, 2)
+	})
+
+	t.Run("returns empty slice when no flights", func(t *testing.T) {
+		mock := NewMockFlightProvider(ctrl)
+		mock.EXPECT().Name().Return("lionair").AnyTimes()
+		mock.EXPECT().Search(gomock.Any(), gomock.Any()).Return([]Flight{}, nil)
+
+		ctx := context.Background()
+		flights, err := mock.Search(ctx, SearchCriteria{Origin: "CGK", Destination: "DPS"})
+
+		assert.NoError(t, err)
+		assert.Len(t, flights, 0)
+	})
+
+	t.Run("returns error when provider fails", func(t *testing.T) {
+		mock := NewMockFlightProvider(ctrl)
+		mock.EXPECT().Name().Return("airasia").AnyTimes()
+		mock.EXPECT().Search(gomock.Any(), gomock.Any()).Return(nil, ErrProviderTimeout)
+
+		ctx := context.Background()
+		flights, err := mock.Search(ctx, SearchCriteria{Origin: "CGK", Destination: "DPS"})
+
+		assert.Error(t, err)
+		assert.Nil(t, flights)
+	})
 }

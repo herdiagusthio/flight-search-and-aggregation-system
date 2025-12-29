@@ -2,6 +2,8 @@ package domain
 
 import "context"
 
+//go:generate mockgen -destination=provider_mock.go -package=domain github.com/flight-search/flight-search-and-aggregation-system/internal/domain FlightProvider
+
 // FlightProvider defines the contract for airline flight data providers.
 // Each provider adapter must implement this interface to be registered
 // with the flight search use case.
