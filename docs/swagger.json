@@ -1,0 +1,451 @@
+{
+    "schemes": [
+        "http",
+        "https"
+    ],
+    "swagger": "2.0",
+    "info": {
+        "description": "A high-performance flight search aggregation service that queries multiple airline providers and returns unified results.",
+        "title": "Flight Search Aggregation API",
+        "contact": {
+            "name": "API Support",
+            "url": "https://github.com/flight-search/flight-search-and-aggregation-system/issues"
+        },
+        "license": {
+            "name": "MIT",
+            "url": "https://opensource.org/licenses/MIT"
+        },
+        "version": "1.0.0"
+    },
+    "host": "localhost:8080",
+    "basePath": "/api/v1",
+    "paths": {
+        "/flights/search": {
+            "post": {
+                "description": "Search for available flights across multiple airline providers (Garuda, Lion Air, Batik Air, AirAsia)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "flights"
+                ],
+                "summary": "Search for flights",
+                "parameters": [
+                    {
+                        "description": "Search criteria",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/http.SearchFlightsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful search with flight results",
+                        "schema": {
+                            "$ref": "#/definitions/http.SwaggerSearchResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Validation error - invalid request parameters",
+                        "schema": {
+                            "$ref": "#/definitions/http.SwaggerErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service unavailable - all providers failed",
+                        "schema": {
+                            "$ref": "#/definitions/http.SwaggerErrorResponse"
+                        }
+                    },
+                    "504": {
+                        "description": "Gateway timeout - request took too long",
+                        "schema": {
+                            "$ref": "#/definitions/http.SwaggerErrorResponse"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "http.FilterDTO": {
+            "type": "object",
+            "properties": {
+                "airlines": {
+                    "description": "Airlines filters to only include flights from these airline codes",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "departureTimeRange": {
+                    "description": "DepartureTimeRange filters flights departing within a time window",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/http.TimeRangeDTO"
+                        }
+                    ]
+                },
+                "maxPrice": {
+                    "description": "MaxPrice filters flights with price above this amount",
+                    "type": "number"
+                },
+                "maxStops": {
+                    "description": "MaxStops filters flights with more stops than this value (0 = direct only)",
+                    "type": "integer"
+                }
+            }
+        },
+        "http.SearchFlightsRequest": {
+            "type": "object",
+            "properties": {
+                "class": {
+                    "description": "Class is the travel class: economy, business, or first (optional)",
+                    "type": "string"
+                },
+                "departureDate": {
+                    "description": "DepartureDate is the desired departure date in YYYY-MM-DD format",
+                    "type": "string"
+                },
+                "destination": {
+                    "description": "Destination is the IATA code of the arrival airport (e.g., \"DPS\")",
+                    "type": "string"
+                },
+                "filters": {
+                    "description": "Filters contains optional filtering criteria",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/http.FilterDTO"
+                        }
+                    ]
+                },
+                "origin": {
+                    "description": "Origin is the IATA code of the departure airport (e.g., \"CGK\")",
+                    "type": "string"
+                },
+                "passengers": {
+                    "description": "Passengers is the number of passengers (1-9)",
+                    "type": "integer"
+                },
+                "sortBy": {
+                    "description": "SortBy specifies how to sort results: best_value, price, duration, departure",
+                    "type": "string"
+                }
+            }
+        },
+        "http.SwaggerAirlineInfo": {
+            "description": "Airline information",
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "Code is the IATA airline code",
+                    "type": "string",
+                    "example": "GA"
+                },
+                "logo": {
+                    "description": "Logo is an optional URL to the airline's logo image",
+                    "type": "string",
+                    "example": "https://example.com/ga-logo.png"
+                },
+                "name": {
+                    "description": "Name is the full airline name",
+                    "type": "string",
+                    "example": "Garuda Indonesia"
+                }
+            }
+        },
+        "http.SwaggerBaggageInfo": {
+            "description": "Baggage allowance information",
+            "type": "object",
+            "properties": {
+                "cabin": {
+                    "description": "Cabin is the cabin baggage allowance in kg",
+                    "type": "integer",
+                    "example": 7
+                },
+                "checked": {
+                    "description": "Checked is the checked baggage allowance in kg",
+                    "type": "integer",
+                    "example": 20
+                }
+            }
+        },
+        "http.SwaggerDurationInfo": {
+            "description": "Flight duration information",
+            "type": "object",
+            "properties": {
+                "display": {
+                    "description": "Display is a human-readable duration string",
+                    "type": "string",
+                    "example": "1h 35m"
+                },
+                "totalMinutes": {
+                    "description": "TotalMinutes is the total flight duration in minutes",
+                    "type": "integer",
+                    "example": 95
+                }
+            }
+        },
+        "http.SwaggerErrorDetail": {
+            "description": "Error details",
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "Code is a machine-readable error code",
+                    "type": "string",
+                    "example": "validation_error"
+                },
+                "details": {
+                    "description": "Details contains field-specific error details",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "message": {
+                    "description": "Message is a human-readable error message",
+                    "type": "string",
+                    "example": "Request validation failed"
+                }
+            }
+        },
+        "http.SwaggerErrorResponse": {
+            "description": "Error response from the API",
+            "type": "object",
+            "properties": {
+                "error": {
+                    "description": "Error contains error details",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/http.SwaggerErrorDetail"
+                        }
+                    ]
+                },
+                "success": {
+                    "description": "Success is always false for error responses",
+                    "type": "boolean",
+                    "example": false
+                }
+            }
+        },
+        "http.SwaggerFlight": {
+            "description": "Flight information from an airline provider",
+            "type": "object",
+            "properties": {
+                "airline": {
+                    "description": "Airline contains information about the operating airline",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/http.SwaggerAirlineInfo"
+                        }
+                    ]
+                },
+                "arrival": {
+                    "description": "Arrival contains arrival airport and time information",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/http.SwaggerFlightPoint"
+                        }
+                    ]
+                },
+                "baggage": {
+                    "description": "Baggage contains baggage allowance information",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/http.SwaggerBaggageInfo"
+                        }
+                    ]
+                },
+                "class": {
+                    "description": "Class is the travel class",
+                    "type": "string",
+                    "example": "economy"
+                },
+                "departure": {
+                    "description": "Departure contains departure airport and time information",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/http.SwaggerFlightPoint"
+                        }
+                    ]
+                },
+                "duration": {
+                    "description": "Duration contains the total flight duration",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/http.SwaggerDurationInfo"
+                        }
+                    ]
+                },
+                "flightNumber": {
+                    "description": "FlightNumber is the airline's flight number",
+                    "type": "string",
+                    "example": "GA-123"
+                },
+                "id": {
+                    "description": "ID is a unique identifier for this flight result",
+                    "type": "string",
+                    "example": "garuda-ga123-cgk-dps-20251215"
+                },
+                "price": {
+                    "description": "Price contains pricing information",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/http.SwaggerPriceInfo"
+                        }
+                    ]
+                },
+                "provider": {
+                    "description": "Provider identifies which flight provider this result came from",
+                    "type": "string",
+                    "example": "garuda"
+                },
+                "rankingScore": {
+                    "description": "RankingScore is the calculated score for sorting by \"best value\"",
+                    "type": "number",
+                    "example": 85.5
+                },
+                "stops": {
+                    "description": "Stops is the number of stops (0 = direct flight)",
+                    "type": "integer",
+                    "example": 0
+                }
+            }
+        },
+        "http.SwaggerFlightPoint": {
+            "description": "Departure or arrival point information",
+            "type": "object",
+            "properties": {
+                "airportCode": {
+                    "description": "AirportCode is the IATA airport code",
+                    "type": "string",
+                    "example": "CGK"
+                },
+                "airportName": {
+                    "description": "AirportName is the full airport name",
+                    "type": "string",
+                    "example": "Soekarno-Hatta International Airport"
+                },
+                "dateTime": {
+                    "description": "DateTime is the scheduled departure or arrival time",
+                    "type": "string",
+                    "example": "2025-12-15T08:00:00Z"
+                },
+                "terminal": {
+                    "description": "Terminal is the terminal identifier",
+                    "type": "string",
+                    "example": "3"
+                },
+                "timezone": {
+                    "description": "Timezone is the IANA timezone identifier",
+                    "type": "string",
+                    "example": "Asia/Jakarta"
+                }
+            }
+        },
+        "http.SwaggerPriceInfo": {
+            "description": "Price information",
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "description": "Amount is the price value",
+                    "type": "number",
+                    "example": 1250000
+                },
+                "currency": {
+                    "description": "Currency is the ISO 4217 currency code",
+                    "type": "string",
+                    "example": "IDR"
+                },
+                "display": {
+                    "description": "Display is a formatted price string",
+                    "type": "string",
+                    "example": "IDR 1,250,000"
+                }
+            }
+        },
+        "http.SwaggerSearchMetadata": {
+            "description": "Metadata about the search execution",
+            "type": "object",
+            "properties": {
+                "providersFailed": {
+                    "description": "ProvidersFailed is the list of provider names that failed or timed out",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        ""
+                    ]
+                },
+                "providersQueried": {
+                    "description": "ProvidersQueried is the list of provider names that were queried",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "garuda",
+                        "lionair",
+                        "batikair",
+                        "airasia"
+                    ]
+                },
+                "searchDurationMs": {
+                    "description": "SearchDurationMs is the total search duration in milliseconds",
+                    "type": "integer",
+                    "example": 1250
+                },
+                "totalResults": {
+                    "description": "TotalResults is the total number of flights returned",
+                    "type": "integer",
+                    "example": 15
+                }
+            }
+        },
+        "http.SwaggerSearchResponse": {
+            "description": "Flight search results with metadata",
+            "type": "object",
+            "properties": {
+                "flights": {
+                    "description": "Flights contains the list of flight results after filtering and sorting",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/http.SwaggerFlight"
+                    }
+                },
+                "metadata": {
+                    "description": "Metadata contains information about the search execution",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/http.SwaggerSearchMetadata"
+                        }
+                    ]
+                }
+            }
+        },
+        "http.TimeRangeDTO": {
+            "type": "object",
+            "properties": {
+                "end": {
+                    "description": "End is the end of the time range (HH:MM format, e.g., \"12:00\")",
+                    "type": "string"
+                },
+                "start": {
+                    "description": "Start is the beginning of the time range (HH:MM format, e.g., \"06:00\")",
+                    "type": "string"
+                }
+            }
+        }
+    },
+    "externalDocs": {
+        "description": "Technical Documentation",
+        "url": "https://github.com/flight-search/flight-search-and-aggregation-system/blob/main/docs/architecture.md"
+    }
+}

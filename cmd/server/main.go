@@ -1,4 +1,22 @@
 // Package main is the entry point for the flight search aggregation service.
+//
+//	@title						Flight Search Aggregation API
+//	@version					1.0.0
+//	@description				A high-performance flight search aggregation service that queries multiple airline providers and returns unified results.
+//
+//	@contact.name				API Support
+//	@contact.url				https://github.com/flight-search/flight-search-and-aggregation-system/issues
+//
+//	@license.name				MIT
+//	@license.url				https://opensource.org/licenses/MIT
+//
+//	@host						localhost:8080
+//	@BasePath					/api/v1
+//
+//	@schemes					http https
+//
+//	@externalDocs.description	Technical Documentation
+//	@externalDocs.url			https://github.com/flight-search/flight-search-and-aggregation-system/blob/main/docs/architecture.md
 package main
 
 import (
@@ -16,6 +34,19 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	echoSwagger "github.com/swaggo/echo-swagger"
+
+	// Import generated docs for swagger
+	_ "github.com/flight-search/flight-search-and-aggregation-system/docs"
+
+	// Application layers
+	flighthttp "github.com/flight-search/flight-search-and-aggregation-system/internal/adapter/http"
+	"github.com/flight-search/flight-search-and-aggregation-system/internal/adapter/provider/airasia"
+	"github.com/flight-search/flight-search-and-aggregation-system/internal/adapter/provider/batikair"
+	"github.com/flight-search/flight-search-and-aggregation-system/internal/adapter/provider/garuda"
+	"github.com/flight-search/flight-search-and-aggregation-system/internal/adapter/provider/lionair"
+	"github.com/flight-search/flight-search-and-aggregation-system/internal/domain"
+	"github.com/flight-search/flight-search-and-aggregation-system/internal/usecase"
 )
 
 const (
@@ -47,7 +78,7 @@ func main() {
 	setupMiddleware(e)
 
 	// Setup routes
-	setupRoutes(e)
+	setupRoutes(e, cfg)
 
 	// Start server with graceful shutdown
 	addr := fmt.Sprintf(":%d", cfg.Server.Port)
@@ -114,12 +145,39 @@ func setupMiddleware(e *echo.Echo) {
 }
 
 // setupRoutes configures the HTTP routes.
-func setupRoutes(e *echo.Echo) {
-	// Health check endpoint
+func setupRoutes(e *echo.Echo, cfg *config.Config) {
+	// Health check endpoint (root level for load balancers)
 	e.GET("/health", healthCheckHandler)
+
+	// Initialize providers with mock data paths
+	mockBasePath := "docs/response-mock"
+	providers := []domain.FlightProvider{
+		garuda.NewAdapter(mockBasePath + "/garuda_indonesia_search_response.json"),
+		lionair.NewAdapter(mockBasePath + "/lion_air_search_response.json"),
+		batikair.NewAdapter(mockBasePath + "/batik_air_search_response.json"),
+		airasia.NewAdapter(mockBasePath + "/airasia_search_response.json"),
+	}
+
+	// Initialize use case with config
+	ucConfig := &usecase.Config{
+		GlobalTimeout:   cfg.Timeouts.GlobalSearch,
+		ProviderTimeout: cfg.Timeouts.PerProvider,
+	}
+	flightUseCase := usecase.NewFlightSearchUseCase(providers, ucConfig)
+
+	// Initialize handler
+	flightHandler := flighthttp.NewFlightHandler(flightUseCase)
+
+	// API v1 routes
+	api := e.Group("/api/v1")
+	api.POST("/flights/search", flightHandler.SearchFlights)
+
+	// Swagger documentation endpoint
+	e.GET("/swagger/*", echoSwagger.WrapHandler)
 }
 
 // healthCheckHandler returns the health status of the service.
+// Note: This endpoint is at the root level (/health), not under /api/v1
 func healthCheckHandler(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]string{
 		"status": "ok",

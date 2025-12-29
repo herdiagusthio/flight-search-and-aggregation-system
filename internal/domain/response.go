@@ -2,38 +2,75 @@ package domain
 
 // SearchResponse represents the aggregated response from a flight search.
 type SearchResponse struct {
-	// Flights contains the list of flight results after filtering and sorting
-	Flights []Flight `json:"flights"`
+	// SearchCriteria contains the original search parameters
+	SearchCriteria SearchCriteriaResponse `json:"search_criteria"`
 
 	// Metadata contains information about the search execution
 	Metadata SearchMetadata `json:"metadata"`
+
+	// Flights contains the list of flight results after filtering and sorting
+	Flights []Flight `json:"flights"`
+}
+
+// SearchCriteriaResponse represents the search criteria in the response.
+type SearchCriteriaResponse struct {
+	// Origin is the IATA code of the departure airport
+	Origin string `json:"origin"`
+
+	// Destination is the IATA code of the arrival airport
+	Destination string `json:"destination"`
+
+	// DepartureDate is the desired departure date in YYYY-MM-DD format
+	DepartureDate string `json:"departure_date"`
+
+	// Passengers is the number of passengers
+	Passengers int `json:"passengers"`
+
+	// CabinClass is the travel class
+	CabinClass string `json:"cabin_class"`
 }
 
 // SearchMetadata contains metadata about the search execution.
 type SearchMetadata struct {
 	// TotalResults is the total number of flights returned
-	TotalResults int `json:"totalResults"`
+	TotalResults int `json:"total_results"`
 
-	// SearchDurationMs is the total search duration in milliseconds
-	SearchDurationMs int64 `json:"searchDurationMs"`
+	// ProvidersQueried is the number of providers that were queried
+	ProvidersQueried int `json:"providers_queried"`
 
-	// ProvidersQueried is the list of provider names that were queried
-	ProvidersQueried []string `json:"providersQueried"`
+	// ProvidersSucceeded is the number of providers that returned results successfully
+	ProvidersSucceeded int `json:"providers_succeeded"`
 
-	// ProvidersFailed is the list of provider names that failed or timed out
-	ProvidersFailed []string `json:"providersFailed,omitempty"`
+	// ProvidersFailed is the number of providers that failed or timed out
+	ProvidersFailed int `json:"providers_failed"`
+
+	// SearchTimeMs is the total search duration in milliseconds
+	SearchTimeMs int64 `json:"search_time_ms"`
+
+	// CacheHit indicates whether the results came from cache
+	CacheHit bool `json:"cache_hit"`
 }
 
-// NewSearchResponse creates a new SearchResponse with the given flights and metadata.
-func NewSearchResponse(flights []Flight, metadata SearchMetadata) SearchResponse {
+// NewSearchResponse creates a new SearchResponse with the given criteria, flights, and metadata.
+func NewSearchResponse(criteria *SearchCriteria, flights []Flight, metadata SearchMetadata) SearchResponse {
 	if flights == nil {
 		flights = []Flight{}
 	}
 	metadata.TotalResults = len(flights)
 
+	// Convert SearchCriteria to SearchCriteriaResponse
+	criteriaResp := SearchCriteriaResponse{
+		Origin:        criteria.Origin,
+		Destination:   criteria.Destination,
+		DepartureDate: criteria.DepartureDate,
+		Passengers:    criteria.Passengers,
+		CabinClass:    criteria.Class,
+	}
+
 	return SearchResponse{
-		Flights:  flights,
-		Metadata: metadata,
+		SearchCriteria: criteriaResp,
+		Metadata:       metadata,
+		Flights:        flights,
 	}
 }
 

@@ -159,7 +159,7 @@ func TestSearch_MultipleProvidersSuccess(t *testing.T) {
 	assert.Equal(t, 5, response.Metadata.TotalResults)
 	assert.Len(t, response.Metadata.ProvidersQueried, 3)
 	assert.Empty(t, response.Metadata.ProvidersFailed)
-	assert.GreaterOrEqual(t, response.Metadata.SearchDurationMs, int64(0))
+	assert.GreaterOrEqual(t, response.Metadata.SearchTimeMs, int64(0))
 }
 
 // TestSearch_PartialFailure tests graceful handling when some providers fail.

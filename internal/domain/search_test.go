@@ -82,11 +82,9 @@ func TestSearchCriteria_Validate(t *testing.T) {
 			isInvalidReq: true,
 		},
 		{
-			name:         "past date fails",
-			modify:       func(c *SearchCriteria) { c.DepartureDate = "2020-01-01" },
-			wantErr:      true,
-			errContains:  "cannot be in the past",
-			isInvalidReq: true,
+			name:    "past date now allowed",
+			modify:  func(c *SearchCriteria) { c.DepartureDate = "2020-01-01" },
+			wantErr: false,
 		},
 		{
 			name:    "today's date passes",

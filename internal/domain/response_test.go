@@ -22,8 +22,10 @@ func TestNewSearchResponse(t *testing.T) {
 				{ID: "2", FlightNumber: "JT-456"},
 			},
 			metadata: SearchMetadata{
-				SearchDurationMs: 100,
-				ProvidersQueried: []string{"garuda", "lionair"},
+				SearchTimeMs:       100,
+				ProvidersQueried:   2,
+				ProvidersSucceeded: 2,
+				ProvidersFailed:    0,
 			},
 			wantFlightCount:  2,
 			wantTotalResults: 2,
@@ -33,7 +35,9 @@ func TestNewSearchResponse(t *testing.T) {
 			name:    "handles nil flights",
 			flights: nil,
 			metadata: SearchMetadata{
-				SearchDurationMs: 50,
+				SearchTimeMs:       50,
+				ProvidersQueried:   1,
+				ProvidersSucceeded: 1,
 			},
 			wantFlightCount:  0,
 			wantTotalResults: 0,
@@ -43,7 +47,8 @@ func TestNewSearchResponse(t *testing.T) {
 			name:    "handles empty flights",
 			flights: []Flight{},
 			metadata: SearchMetadata{
-				ProvidersQueried: []string{"garuda"},
+				ProvidersQueried:   1,
+				ProvidersSucceeded: 1,
 			},
 			wantFlightCount:  0,
 			wantTotalResults: 0,
@@ -55,8 +60,9 @@ func TestNewSearchResponse(t *testing.T) {
 				{ID: "1", FlightNumber: "GA-100"},
 			},
 			metadata: SearchMetadata{
-				SearchDurationMs: 25,
-				ProvidersQueried: []string{"garuda"},
+				SearchTimeMs:       25,
+				ProvidersQueried:   1,
+				ProvidersSucceeded: 1,
 			},
 			wantFlightCount:  1,
 			wantTotalResults: 1,
@@ -66,7 +72,14 @@ func TestNewSearchResponse(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			response := NewSearchResponse(tt.flights, tt.metadata)
+			criteria := &SearchCriteria{
+				Origin:        "CGK",
+				Destination:   "DPS",
+				DepartureDate: "2025-12-15",
+				Passengers:    1,
+				Class:         "economy",
+			}
+			response := NewSearchResponse(criteria, tt.flights, tt.metadata)
 
 			assert.NotNil(t, response.Flights)
 			assert.Len(t, response.Flights, tt.wantFlightCount)

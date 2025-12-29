@@ -153,18 +153,22 @@ func (uc *flightSearchUseCase) Search(ctx context.Context, criteria domain.Searc
 	// Sort results using the dedicated sorting module
 	sorted := SortFlights(ranked, opts.SortBy)
 
-	// Build response
-	response := &domain.SearchResponse{
-		Flights: sorted,
-		Metadata: domain.SearchMetadata{
-			TotalResults:     len(sorted),
-			SearchDurationMs: time.Since(startTime).Milliseconds(),
-			ProvidersQueried: queriedProviders,
-			ProvidersFailed:  failedProviders,
+	// Build response with new format
+	successfulProviders := len(uc.providers) - len(failedProviders)
+	response := domain.NewSearchResponse(
+		&criteria,
+		sorted,
+		domain.SearchMetadata{
+			TotalResults:       len(sorted),
+			ProvidersQueried:   len(uc.providers),
+			ProvidersSucceeded: successfulProviders,
+			ProvidersFailed:    len(failedProviders),
+			SearchTimeMs:       time.Since(startTime).Milliseconds(),
+			CacheHit:           false, // Not implemented yet
 		},
-	}
+	)
 
-	return response, nil
+	return &response, nil
 }
 
 // queryProvider queries a single provider with timeout and panic recovery.

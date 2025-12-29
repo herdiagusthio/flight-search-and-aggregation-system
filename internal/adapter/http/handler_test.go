@@ -30,11 +30,21 @@ func (m *mockUseCase) Search(ctx context.Context, criteria domain.SearchCriteria
 		return m.searchFunc(ctx, criteria, opts)
 	}
 	return &domain.SearchResponse{
+		SearchCriteria: domain.SearchCriteriaResponse{
+			Origin:        criteria.Origin,
+			Destination:   criteria.Destination,
+			DepartureDate: criteria.DepartureDate,
+			Passengers:    criteria.Passengers,
+			CabinClass:    criteria.Class,
+		},
 		Flights: []domain.Flight{},
 		Metadata: domain.SearchMetadata{
-			TotalResults:     0,
-			SearchDurationMs: 100,
-			ProvidersQueried: []string{"test"},
+			TotalResults:       0,
+			SearchTimeMs:       100,
+			ProvidersQueried:   1,
+			ProvidersSucceeded: 1,
+			ProvidersFailed:    0,
+			CacheHit:           false,
 		},
 	}, nil
 }
@@ -90,11 +100,21 @@ func TestSearchFlights_Success(t *testing.T) {
 	mock := &mockUseCase{
 		searchFunc: func(ctx context.Context, criteria domain.SearchCriteria, opts usecase.SearchOptions) (*domain.SearchResponse, error) {
 			return &domain.SearchResponse{
+				SearchCriteria: domain.SearchCriteriaResponse{
+					Origin:        criteria.Origin,
+					Destination:   criteria.Destination,
+					DepartureDate: criteria.DepartureDate,
+					Passengers:    criteria.Passengers,
+					CabinClass:    criteria.Class,
+				},
 				Flights: mockFlights,
 				Metadata: domain.SearchMetadata{
-					TotalResults:     1,
-					SearchDurationMs: 150,
-					ProvidersQueried: []string{"garuda"},
+					TotalResults:       1,
+					SearchTimeMs:       150,
+					ProvidersQueried:   1,
+					ProvidersSucceeded: 1,
+					ProvidersFailed:    0,
+					CacheHit:           false,
 				},
 			}, nil
 		},
@@ -127,8 +147,21 @@ func TestSearchFlights_WithFilters(t *testing.T) {
 		searchFunc: func(ctx context.Context, criteria domain.SearchCriteria, opts usecase.SearchOptions) (*domain.SearchResponse, error) {
 			capturedOpts = opts
 			return &domain.SearchResponse{
+				SearchCriteria: domain.SearchCriteriaResponse{
+					Origin:        criteria.Origin,
+					Destination:   criteria.Destination,
+					DepartureDate: criteria.DepartureDate,
+					Passengers:    criteria.Passengers,
+					CabinClass:    criteria.Class,
+				},
 				Flights:  []domain.Flight{},
-				Metadata: domain.SearchMetadata{TotalResults: 0},
+				Metadata: domain.SearchMetadata{
+					TotalResults:       0,
+					ProvidersQueried:   1,
+					ProvidersSucceeded: 1,
+					ProvidersFailed:    0,
+					CacheHit:           false,
+				},
 			}, nil
 		},
 	}
@@ -313,27 +346,6 @@ func TestSearchFlights_InvalidDateFormat(t *testing.T) {
 	}
 }
 
-func TestSearchFlights_PastDate(t *testing.T) {
-	e, _ := setupTestHandler(&mockUseCase{})
-
-	req := SearchFlightsRequest{
-		Origin:        "CGK",
-		Destination:   "DPS",
-		DepartureDate: getPastDate(),
-		Passengers:    1,
-	}
-
-	rec := makeRequest(e, http.MethodPost, "/api/v1/flights/search", req)
-
-	assert.Equal(t, http.StatusBadRequest, rec.Code)
-
-	var errResp response.ErrorDetail
-	err := json.Unmarshal(rec.Body.Bytes(), &errResp)
-	require.NoError(t, err)
-	assert.Contains(t, errResp.Details, "departureDate")
-	assert.Contains(t, errResp.Details["departureDate"], "past")
-}
-
 func TestSearchFlights_SameOriginDestination(t *testing.T) {
 	e, _ := setupTestHandler(&mockUseCase{})
 
@@ -489,11 +501,21 @@ func TestSearchFlights_EmptyResults(t *testing.T) {
 	mock := &mockUseCase{
 		searchFunc: func(ctx context.Context, criteria domain.SearchCriteria, opts usecase.SearchOptions) (*domain.SearchResponse, error) {
 			return &domain.SearchResponse{
+				SearchCriteria: domain.SearchCriteriaResponse{
+					Origin:        criteria.Origin,
+					Destination:   criteria.Destination,
+					DepartureDate: criteria.DepartureDate,
+					Passengers:    criteria.Passengers,
+					CabinClass:    criteria.Class,
+				},
 				Flights: []domain.Flight{},
 				Metadata: domain.SearchMetadata{
-					TotalResults:     0,
-					SearchDurationMs: 100,
-					ProvidersQueried: []string{"test"},
+					TotalResults:       0,
+					SearchTimeMs:       100,
+					ProvidersQueried:   1,
+					ProvidersSucceeded: 1,
+					ProvidersFailed:    0,
+					CacheHit:           false,
 				},
 			}, nil
 		},
@@ -527,8 +549,21 @@ func TestSearchFlights_LowercaseOriginDestination(t *testing.T) {
 		searchFunc: func(ctx context.Context, criteria domain.SearchCriteria, opts usecase.SearchOptions) (*domain.SearchResponse, error) {
 			capturedCriteria = criteria
 			return &domain.SearchResponse{
+				SearchCriteria: domain.SearchCriteriaResponse{
+					Origin:        criteria.Origin,
+					Destination:   criteria.Destination,
+					DepartureDate: criteria.DepartureDate,
+					Passengers:    criteria.Passengers,
+					CabinClass:    criteria.Class,
+				},
 				Flights:  []domain.Flight{},
-				Metadata: domain.SearchMetadata{TotalResults: 0},
+				Metadata: domain.SearchMetadata{
+					TotalResults:       0,
+					ProvidersQueried:   1,
+					ProvidersSucceeded: 1,
+					ProvidersFailed:    0,
+					CacheHit:           false,
+				},
 			}, nil
 		},
 	}

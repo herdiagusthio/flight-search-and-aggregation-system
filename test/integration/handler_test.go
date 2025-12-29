@@ -33,7 +33,7 @@ func TestHandler_SearchFlights_Success(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, searchResp.Flights, 3)
 	assert.Equal(t, 3, searchResp.Metadata.TotalResults)
-	assert.Contains(t, searchResp.Metadata.ProvidersQueried, "garuda")
+	assert.Greater(t, searchResp.Metadata.ProvidersQueried, 0)
 }
 
 // TestHandler_ResponseBodyStructure tests that the response body has correct structure.
@@ -123,12 +123,10 @@ func TestHandler_MetadataInResponse(t *testing.T) {
 
 	// Verify metadata
 	assert.Equal(t, 2, searchResp.Metadata.TotalResults)
-	assert.GreaterOrEqual(t, searchResp.Metadata.SearchDurationMs, int64(0))
-	assert.Len(t, searchResp.Metadata.ProvidersQueried, 2)
-	assert.Contains(t, searchResp.Metadata.ProvidersQueried, "garuda")
-	assert.Contains(t, searchResp.Metadata.ProvidersQueried, "lion")
-	assert.Len(t, searchResp.Metadata.ProvidersFailed, 1)
-	assert.Contains(t, searchResp.Metadata.ProvidersFailed, "lion")
+	assert.GreaterOrEqual(t, searchResp.Metadata.SearchTimeMs, int64(0))
+	assert.Equal(t, 2, searchResp.Metadata.ProvidersQueried)
+	assert.Equal(t, 1, searchResp.Metadata.ProvidersSucceeded)
+	assert.Equal(t, 1, searchResp.Metadata.ProvidersFailed)
 }
 
 // TestHandler_ValidationErrors tests various validation error scenarios.
@@ -214,17 +212,6 @@ func TestHandler_ValidationErrors(t *testing.T) {
 			},
 			wantCode:     http.StatusBadRequest,
 			wantContains: "departure",
-		},
-		{
-			name: "past date",
-			body: map[string]interface{}{
-				"origin":        "CGK",
-				"destination":   "DPS",
-				"departureDate": "2020-01-01",
-				"passengers":    1,
-			},
-			wantCode:     http.StatusBadRequest,
-			wantContains: "past",
 		},
 		{
 			name: "zero passengers",
@@ -375,7 +362,7 @@ func TestHandler_MultipleProvidersSuccess(t *testing.T) {
 	searchResp, err := resp.ParseSearchResponse()
 	require.NoError(t, err)
 	assert.Len(t, searchResp.Flights, 6) // 2 + 3 + 1
-	assert.Len(t, searchResp.Metadata.ProvidersQueried, 3)
+	assert.Equal(t, 3, searchResp.Metadata.ProvidersQueried)
 }
 
 // TestHandler_FiltersApplied tests that filters are applied via HTTP.

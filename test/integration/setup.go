@@ -98,9 +98,9 @@ func (ts *TestServer) HealthRequest() Response {
 	})
 }
 
-// ParseSearchResponse parses the response body as a SearchResponse.
-func (r *Response) ParseSearchResponse() (*domain.SearchResponse, error) {
-	var resp domain.SearchResponse
+// ParseSearchResponse parses the response body as a SearchResponseDTO.
+func (r *Response) ParseSearchResponse() (*httpAdapter.SearchResponseDTO, error) {
+	var resp httpAdapter.SearchResponseDTO
 	if err := json.Unmarshal(r.Body, &resp); err != nil {
 		return nil, err
 	}

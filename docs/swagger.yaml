@@ -1,0 +1,317 @@
+basePath: /api/v1
+definitions:
+  http.FilterDTO:
+    properties:
+      airlines:
+        description: Airlines filters to only include flights from these airline codes
+        items:
+          type: string
+        type: array
+      departureTimeRange:
+        allOf:
+        - $ref: '#/definitions/http.TimeRangeDTO'
+        description: DepartureTimeRange filters flights departing within a time window
+      maxPrice:
+        description: MaxPrice filters flights with price above this amount
+        type: number
+      maxStops:
+        description: MaxStops filters flights with more stops than this value (0 =
+          direct only)
+        type: integer
+    type: object
+  http.SearchFlightsRequest:
+    properties:
+      class:
+        description: 'Class is the travel class: economy, business, or first (optional)'
+        type: string
+      departureDate:
+        description: DepartureDate is the desired departure date in YYYY-MM-DD format
+        type: string
+      destination:
+        description: Destination is the IATA code of the arrival airport (e.g., "DPS")
+        type: string
+      filters:
+        allOf:
+        - $ref: '#/definitions/http.FilterDTO'
+        description: Filters contains optional filtering criteria
+      origin:
+        description: Origin is the IATA code of the departure airport (e.g., "CGK")
+        type: string
+      passengers:
+        description: Passengers is the number of passengers (1-9)
+        type: integer
+      sortBy:
+        description: 'SortBy specifies how to sort results: best_value, price, duration,
+          departure'
+        type: string
+    type: object
+  http.SwaggerAirlineInfo:
+    description: Airline information
+    properties:
+      code:
+        description: Code is the IATA airline code
+        example: GA
+        type: string
+      logo:
+        description: Logo is an optional URL to the airline's logo image
+        example: https://example.com/ga-logo.png
+        type: string
+      name:
+        description: Name is the full airline name
+        example: Garuda Indonesia
+        type: string
+    type: object
+  http.SwaggerBaggageInfo:
+    description: Baggage allowance information
+    properties:
+      cabin:
+        description: Cabin is the cabin baggage allowance in kg
+        example: 7
+        type: integer
+      checked:
+        description: Checked is the checked baggage allowance in kg
+        example: 20
+        type: integer
+    type: object
+  http.SwaggerDurationInfo:
+    description: Flight duration information
+    properties:
+      display:
+        description: Display is a human-readable duration string
+        example: 1h 35m
+        type: string
+      totalMinutes:
+        description: TotalMinutes is the total flight duration in minutes
+        example: 95
+        type: integer
+    type: object
+  http.SwaggerErrorDetail:
+    description: Error details
+    properties:
+      code:
+        description: Code is a machine-readable error code
+        example: validation_error
+        type: string
+      details:
+        additionalProperties:
+          type: string
+        description: Details contains field-specific error details
+        type: object
+      message:
+        description: Message is a human-readable error message
+        example: Request validation failed
+        type: string
+    type: object
+  http.SwaggerErrorResponse:
+    description: Error response from the API
+    properties:
+      error:
+        allOf:
+        - $ref: '#/definitions/http.SwaggerErrorDetail'
+        description: Error contains error details
+      success:
+        description: Success is always false for error responses
+        example: false
+        type: boolean
+    type: object
+  http.SwaggerFlight:
+    description: Flight information from an airline provider
+    properties:
+      airline:
+        allOf:
+        - $ref: '#/definitions/http.SwaggerAirlineInfo'
+        description: Airline contains information about the operating airline
+      arrival:
+        allOf:
+        - $ref: '#/definitions/http.SwaggerFlightPoint'
+        description: Arrival contains arrival airport and time information
+      baggage:
+        allOf:
+        - $ref: '#/definitions/http.SwaggerBaggageInfo'
+        description: Baggage contains baggage allowance information
+      class:
+        description: Class is the travel class
+        example: economy
+        type: string
+      departure:
+        allOf:
+        - $ref: '#/definitions/http.SwaggerFlightPoint'
+        description: Departure contains departure airport and time information
+      duration:
+        allOf:
+        - $ref: '#/definitions/http.SwaggerDurationInfo'
+        description: Duration contains the total flight duration
+      flightNumber:
+        description: FlightNumber is the airline's flight number
+        example: GA-123
+        type: string
+      id:
+        description: ID is a unique identifier for this flight result
+        example: garuda-ga123-cgk-dps-20251215
+        type: string
+      price:
+        allOf:
+        - $ref: '#/definitions/http.SwaggerPriceInfo'
+        description: Price contains pricing information
+      provider:
+        description: Provider identifies which flight provider this result came from
+        example: garuda
+        type: string
+      rankingScore:
+        description: RankingScore is the calculated score for sorting by "best value"
+        example: 85.5
+        type: number
+      stops:
+        description: Stops is the number of stops (0 = direct flight)
+        example: 0
+        type: integer
+    type: object
+  http.SwaggerFlightPoint:
+    description: Departure or arrival point information
+    properties:
+      airportCode:
+        description: AirportCode is the IATA airport code
+        example: CGK
+        type: string
+      airportName:
+        description: AirportName is the full airport name
+        example: Soekarno-Hatta International Airport
+        type: string
+      dateTime:
+        description: DateTime is the scheduled departure or arrival time
+        example: "2025-12-15T08:00:00Z"
+        type: string
+      terminal:
+        description: Terminal is the terminal identifier
+        example: "3"
+        type: string
+      timezone:
+        description: Timezone is the IANA timezone identifier
+        example: Asia/Jakarta
+        type: string
+    type: object
+  http.SwaggerPriceInfo:
+    description: Price information
+    properties:
+      amount:
+        description: Amount is the price value
+        example: 1250000
+        type: number
+      currency:
+        description: Currency is the ISO 4217 currency code
+        example: IDR
+        type: string
+      display:
+        description: Display is a formatted price string
+        example: IDR 1,250,000
+        type: string
+    type: object
+  http.SwaggerSearchMetadata:
+    description: Metadata about the search execution
+    properties:
+      providersFailed:
+        description: ProvidersFailed is the list of provider names that failed or
+          timed out
+        example:
+        - ""
+        items:
+          type: string
+        type: array
+      providersQueried:
+        description: ProvidersQueried is the list of provider names that were queried
+        example:
+        - garuda
+        - lionair
+        - batikair
+        - airasia
+        items:
+          type: string
+        type: array
+      searchDurationMs:
+        description: SearchDurationMs is the total search duration in milliseconds
+        example: 1250
+        type: integer
+      totalResults:
+        description: TotalResults is the total number of flights returned
+        example: 15
+        type: integer
+    type: object
+  http.SwaggerSearchResponse:
+    description: Flight search results with metadata
+    properties:
+      flights:
+        description: Flights contains the list of flight results after filtering and
+          sorting
+        items:
+          $ref: '#/definitions/http.SwaggerFlight'
+        type: array
+      metadata:
+        allOf:
+        - $ref: '#/definitions/http.SwaggerSearchMetadata'
+        description: Metadata contains information about the search execution
+    type: object
+  http.TimeRangeDTO:
+    properties:
+      end:
+        description: End is the end of the time range (HH:MM format, e.g., "12:00")
+        type: string
+      start:
+        description: Start is the beginning of the time range (HH:MM format, e.g.,
+          "06:00")
+        type: string
+    type: object
+externalDocs:
+  description: Technical Documentation
+  url: https://github.com/flight-search/flight-search-and-aggregation-system/blob/main/docs/architecture.md
+host: localhost:8080
+info:
+  contact:
+    name: API Support
+    url: https://github.com/flight-search/flight-search-and-aggregation-system/issues
+  description: A high-performance flight search aggregation service that queries multiple
+    airline providers and returns unified results.
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  title: Flight Search Aggregation API
+  version: 1.0.0
+paths:
+  /flights/search:
+    post:
+      consumes:
+      - application/json
+      description: Search for available flights across multiple airline providers
+        (Garuda, Lion Air, Batik Air, AirAsia)
+      parameters:
+      - description: Search criteria
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/http.SearchFlightsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successful search with flight results
+          schema:
+            $ref: '#/definitions/http.SwaggerSearchResponse'
+        "400":
+          description: Validation error - invalid request parameters
+          schema:
+            $ref: '#/definitions/http.SwaggerErrorResponse'
+        "503":
+          description: Service unavailable - all providers failed
+          schema:
+            $ref: '#/definitions/http.SwaggerErrorResponse'
+        "504":
+          description: Gateway timeout - request took too long
+          schema:
+            $ref: '#/definitions/http.SwaggerErrorResponse'
+      summary: Search for flights
+      tags:
+      - flights
+schemes:
+- http
+- https
+swagger: "2.0"

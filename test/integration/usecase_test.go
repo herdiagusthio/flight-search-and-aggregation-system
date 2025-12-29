@@ -34,9 +34,9 @@ func TestFlightSearch_MultipleProviders_Success(t *testing.T) {
 	assert.Len(t, result.Flights, 5) // 2 + 3
 
 	// Verify metadata
-	assert.Contains(t, result.Metadata.ProvidersQueried, "garuda")
-	assert.Contains(t, result.Metadata.ProvidersQueried, "lion")
-	assert.Empty(t, result.Metadata.ProvidersFailed)
+	assert.Equal(t, 2, result.Metadata.ProvidersQueried)
+	assert.Equal(t, 2, result.Metadata.ProvidersSucceeded)
+	assert.Equal(t, 0, result.Metadata.ProvidersFailed)
 	assert.Equal(t, 5, result.Metadata.TotalResults)
 
 	// Verify both providers were called
@@ -64,9 +64,9 @@ func TestFlightSearch_PartialFailure(t *testing.T) {
 	assert.Len(t, result.Flights, 2) // Only garuda's flights
 
 	// Verify metadata
-	assert.Contains(t, result.Metadata.ProvidersQueried, "garuda")
-	assert.Contains(t, result.Metadata.ProvidersQueried, "lion")
-	assert.Contains(t, result.Metadata.ProvidersFailed, "lion")
+	assert.Equal(t, 2, result.Metadata.ProvidersQueried)
+	assert.Equal(t, 1, result.Metadata.ProvidersSucceeded)
+	assert.Equal(t, 1, result.Metadata.ProvidersFailed)
 }
 
 // TestFlightSearch_AllProvidersFail tests that the use case returns
@@ -292,8 +292,8 @@ func TestFlightSearch_MixedProviderResults(t *testing.T) {
 	assert.Len(t, result.Flights, 8) // 5 + 0 + 3
 
 	// All four providers should be queried
-	assert.Len(t, result.Metadata.ProvidersQueried, 4)
-	// Only airasia should be in failed list
-	assert.Len(t, result.Metadata.ProvidersFailed, 1)
-	assert.Contains(t, result.Metadata.ProvidersFailed, "airasia")
+	assert.Equal(t, 4, result.Metadata.ProvidersQueried)
+	assert.Equal(t, 3, result.Metadata.ProvidersSucceeded)
+	// Only airasia should have failed
+	assert.Equal(t, 1, result.Metadata.ProvidersFailed)
 }

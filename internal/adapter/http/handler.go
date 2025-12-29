@@ -27,17 +27,17 @@ func NewFlightHandler(uc usecase.FlightSearchUseCase) *FlightHandler {
 
 // SearchFlights handles POST /api/v1/flights/search
 //
-// @Summary Search for flights
-// @Description Search for available flights across multiple providers
-// @Tags flights
-// @Accept json
-// @Produce json
-// @Param request body SearchFlightsRequest true "Search criteria"
-// @Success 200 {object} domain.SearchResponse
-// @Failure 400 {object} response.ErrorDetail "Validation error"
-// @Failure 503 {object} response.ErrorDetail "Service unavailable"
-// @Failure 504 {object} response.ErrorDetail "Gateway timeout"
-// @Router /api/v1/flights/search [post]
+//	@Summary		Search for flights
+//	@Description	Search for available flights across multiple airline providers (Garuda, Lion Air, Batik Air, AirAsia)
+//	@Tags			flights
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body		SearchFlightsRequest	true	"Search criteria"
+//	@Success		200		{object}	SwaggerSearchResponse	"Successful search with flight results"
+//	@Failure		400		{object}	SwaggerErrorResponse	"Validation error - invalid request parameters"
+//	@Failure		503		{object}	SwaggerErrorResponse	"Service unavailable - all providers failed"
+//	@Failure		504		{object}	SwaggerErrorResponse	"Gateway timeout - request took too long"
+//	@Router			/flights/search [post]
 func (h *FlightHandler) SearchFlights(c echo.Context) error {
 	var req SearchFlightsRequest
 
@@ -61,8 +61,11 @@ func (h *FlightHandler) SearchFlights(c echo.Context) error {
 		return h.handleError(c, err)
 	}
 
+	// Convert to DTO format matching expected output
+	dto := ToSearchResponseDTO(result)
+
 	// Return successful response
-	return response.SearchResults(c, result)
+	return response.SearchResults(c, dto)
 }
 
 // handleValidationError handles validation errors and returns a 400 response.

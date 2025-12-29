@@ -38,7 +38,7 @@ func List(c echo.Context, items interface{}, meta interface{}) error {
 }
 
 // SearchResults writes a 200 OK response with search results.
-// This is a convenience wrapper that returns the data directly without wrapping.
+// Accepts the raw domain response and returns it directly.
 func SearchResults(c echo.Context, results interface{}) error {
 	return c.JSON(http.StatusOK, results)
 }

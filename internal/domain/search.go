@@ -69,16 +69,10 @@ func (s *SearchCriteria) Validate() error {
 		return fmt.Errorf("%w: departureDate must be in YYYY-MM-DD format, got %q", ErrInvalidRequest, s.DepartureDate)
 	}
 
-	// Parse and validate the date is valid and not in the past
-	departureDate, err := time.Parse("2006-01-02", s.DepartureDate)
+	// Parse and validate the date is valid
+	_, err := time.Parse("2006-01-02", s.DepartureDate)
 	if err != nil {
 		return fmt.Errorf("%w: departureDate is not a valid date: %s", ErrInvalidRequest, s.DepartureDate)
-	}
-
-	// Check if date is not in the past (compare dates only, not time)
-	today := time.Now().Truncate(24 * time.Hour)
-	if departureDate.Before(today) {
-		return fmt.Errorf("%w: departureDate cannot be in the past", ErrInvalidRequest)
 	}
 
 	// Validate passengers

@@ -202,15 +202,10 @@ func (r *SearchFlightsRequest) validateDepartureDate(errs *ValidationErrors) {
 		return
 	}
 
-	date, err := time.Parse("2006-01-02", r.DepartureDate)
+	_, err := time.Parse("2006-01-02", r.DepartureDate)
 	if err != nil {
 		errs.Add("departureDate", "departureDate is not a valid date")
 		return
-	}
-
-	today := time.Now().Truncate(24 * time.Hour)
-	if date.Before(today) {
-		errs.Add("departureDate", "departureDate cannot be in the past")
 	}
 }
 
