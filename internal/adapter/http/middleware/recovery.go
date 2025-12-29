@@ -9,14 +9,6 @@ import (
 	"github.com/rs/zerolog"
 )
 
-// RecoveryConfig holds configuration for the recovery middleware.
-type RecoveryConfig struct {
-	// DisableStackAll disables stack trace for all goroutines.
-	DisableStackAll bool
-	// DisablePrintStack disables printing stack trace to logger.
-	DisablePrintStack bool
-}
-
 // DefaultRecoveryConfig returns the default recovery configuration.
 func DefaultRecoveryConfig() RecoveryConfig {
 	return RecoveryConfig{

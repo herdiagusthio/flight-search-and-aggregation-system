@@ -87,27 +87,3 @@ func InternalServerErrorWithMessage(c echo.Context, message string) error {
 		Message: message,
 	})
 }
-
-// NotFound writes a 404 Not Found response.
-func NotFound(c echo.Context, message string) error {
-	return c.JSON(http.StatusNotFound, &ErrorDetail{
-		Code:    "not_found",
-		Message: message,
-	})
-}
-
-// Unauthorized writes a 401 Unauthorized response.
-func Unauthorized(c echo.Context, message string) error {
-	return c.JSON(http.StatusUnauthorized, &ErrorDetail{
-		Code:    "unauthorized",
-		Message: message,
-	})
-}
-
-// Forbidden writes a 403 Forbidden response.
-func Forbidden(c echo.Context, message string) error {
-	return c.JSON(http.StatusForbidden, &ErrorDetail{
-		Code:    "forbidden",
-		Message: message,
-	})
-}
