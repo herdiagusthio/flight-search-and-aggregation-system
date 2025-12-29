@@ -1,0 +1,32 @@
+# Ignore development docs folder
+development-docs/
+
+# Environment files (contain secrets)
+.env
+.env.local
+.env.*.local
+
+# Binary files
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Go build artifacts
+/bin/
+/dist/
+
+# IDE settings
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Test coverage
+coverage.out
+coverage.html
