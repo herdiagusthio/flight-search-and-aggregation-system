@@ -157,8 +157,9 @@ func TestSearch_MultipleProvidersSuccess(t *testing.T) {
 	require.NotNil(t, response)
 	assert.Len(t, response.Flights, 5)
 	assert.Equal(t, 5, response.Metadata.TotalResults)
-	assert.Len(t, response.Metadata.ProvidersQueried, 3)
-	assert.Empty(t, response.Metadata.ProvidersFailed)
+	assert.Equal(t, 3, response.Metadata.ProvidersQueried)
+	assert.Equal(t, 3, response.Metadata.ProvidersSucceeded)
+	assert.Equal(t, 0, response.Metadata.ProvidersFailed)
 	assert.GreaterOrEqual(t, response.Metadata.SearchTimeMs, int64(0))
 }
 
@@ -185,8 +186,9 @@ func TestSearch_PartialFailure(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, response)
 	assert.Len(t, response.Flights, 1) // Only from provider1
-	assert.Len(t, response.Metadata.ProvidersQueried, 3)
-	assert.Len(t, response.Metadata.ProvidersFailed, 2)
+	assert.Equal(t, 3, response.Metadata.ProvidersQueried)
+	assert.Equal(t, 1, response.Metadata.ProvidersSucceeded)
+	assert.Equal(t, 2, response.Metadata.ProvidersFailed)
 }
 
 // TestSearch_AllProvidersFail tests error when all providers fail.
@@ -240,7 +242,7 @@ func TestSearch_EmptyResults(t *testing.T) {
 	require.NotNil(t, response)
 	assert.Empty(t, response.Flights)
 	assert.Equal(t, 0, response.Metadata.TotalResults)
-	assert.Empty(t, response.Metadata.ProvidersFailed)
+	assert.Equal(t, 0, response.Metadata.ProvidersFailed)
 }
 
 // TestSearch_ProviderTimeout tests per-provider timeout behavior.
@@ -277,7 +279,9 @@ func TestSearch_ProviderTimeout(t *testing.T) {
 
 	// Fast provider should succeed
 	assert.Len(t, response.Flights, 1)
-	assert.Contains(t, response.Metadata.ProvidersFailed, "slow")
+	assert.Equal(t, 2, response.Metadata.ProvidersQueried)
+	assert.Equal(t, 1, response.Metadata.ProvidersSucceeded)
+	assert.Equal(t, 1, response.Metadata.ProvidersFailed)
 }
 
 // TestSearch_GlobalTimeout tests global timeout behavior.
@@ -358,7 +362,9 @@ func TestSearch_ProviderPanic(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, response)
 	assert.Len(t, response.Flights, 1)
-	assert.Contains(t, response.Metadata.ProvidersFailed, "panicking")
+	assert.Equal(t, 2, response.Metadata.ProvidersQueried)
+	assert.Equal(t, 1, response.Metadata.ProvidersSucceeded)
+	assert.Equal(t, 1, response.Metadata.ProvidersFailed)
 }
 
 // TestSearch_SingleProvider tests the scatter-gather pattern with a single provider.
@@ -382,7 +388,9 @@ func TestSearch_SingleProvider(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, response)
 	assert.Len(t, response.Flights, 1)
-	assert.Len(t, response.Metadata.ProvidersQueried, 1)
+	assert.Equal(t, 1, response.Metadata.ProvidersQueried)
+	assert.Equal(t, 1, response.Metadata.ProvidersSucceeded)
+	assert.Equal(t, 0, response.Metadata.ProvidersFailed)
 }
 
 // TestSearch_WithFiltering tests that filters are applied to results.

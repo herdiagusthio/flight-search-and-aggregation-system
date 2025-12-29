@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	httpAdapter "github.com/flight-search/flight-search-and-aggregation-system/internal/adapter/http"
 	"github.com/flight-search/flight-search-and-aggregation-system/internal/domain"
 	"github.com/flight-search/flight-search-and-aggregation-system/test/mock"
 )
@@ -71,7 +72,7 @@ func TestConcurrent_IndependentResults(t *testing.T) {
 
 	numRequests := 5
 	var wg sync.WaitGroup
-	results := make([]*domain.SearchResponse, numRequests)
+	results := make([]*httpAdapter.SearchResponseDTO, numRequests)
 
 	// Act
 	for i := 0; i < numRequests; i++ {
@@ -80,7 +81,8 @@ func TestConcurrent_IndependentResults(t *testing.T) {
 			defer wg.Done()
 			resp := ts.SearchRequest(DefaultSearchRequest())
 			if resp.Code == http.StatusOK {
-				results[idx], _ = resp.ParseSearchResponse()
+				parsed, _ := resp.ParseSearchResponse()
+				results[idx] = parsed
 			}
 		}(i)
 	}
@@ -91,7 +93,7 @@ func TestConcurrent_IndependentResults(t *testing.T) {
 	for i := 0; i < numRequests; i++ {
 		require.NotNil(t, results[i], "request %d should have result", i)
 		assert.Len(t, results[i].Flights, 5, "request %d should have 5 flights (2+3)", i)
-		assert.Len(t, results[i].Metadata.ProvidersQueried, 2)
+		assert.Equal(t, 2, results[i].Metadata.ProvidersQueried)
 	}
 }
 
