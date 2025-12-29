@@ -29,9 +29,25 @@ var (
 )
 
 // ProviderError wraps an error with provider context.
+// It includes information about whether the error is retryable,
+// which helps the use case layer decide on retry strategies.
 type ProviderError struct {
+	// Provider is the name/identifier of the provider that failed
 	Provider string
-	Err      error
+
+	// Err is the underlying error
+	Err error
+
+	// Retryable indicates whether this error is transient and the operation
+	// might succeed if retried. Examples of retryable errors:
+	//   - Temporary network issues
+	//   - Rate limiting (429)
+	//   - Service temporarily unavailable (503)
+	// Examples of non-retryable errors:
+	//   - Invalid request parameters (400)
+	//   - Authentication failures (401)
+	//   - Resource not found (404)
+	Retryable bool
 }
 
 // Error implements the error interface.
@@ -45,10 +61,21 @@ func (e *ProviderError) Unwrap() error {
 }
 
 // NewProviderError creates a new ProviderError.
+// By default, errors are considered non-retryable.
 func NewProviderError(provider string, err error) *ProviderError {
 	return &ProviderError{
-		Provider: provider,
-		Err:      err,
+		Provider:  provider,
+		Err:       err,
+		Retryable: false,
+	}
+}
+
+// NewRetryableProviderError creates a new ProviderError marked as retryable.
+func NewRetryableProviderError(provider string, err error) *ProviderError {
+	return &ProviderError{
+		Provider:  provider,
+		Err:       err,
+		Retryable: true,
 	}
 }
 

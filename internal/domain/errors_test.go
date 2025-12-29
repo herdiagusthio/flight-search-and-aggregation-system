@@ -14,6 +14,7 @@ func TestProviderError(t *testing.T) {
 		underlyingErr  error
 		wantContains   []string
 		wantUnwrapable bool
+		wantRetryable  bool
 	}{
 		{
 			name:           "error message includes provider and underlying error",
@@ -21,6 +22,7 @@ func TestProviderError(t *testing.T) {
 			underlyingErr:  errors.New("connection failed"),
 			wantContains:   []string{"garuda", "connection failed"},
 			wantUnwrapable: true,
+			wantRetryable:  false, // Default is non-retryable
 		},
 		{
 			name:           "error message with different provider",
@@ -28,6 +30,7 @@ func TestProviderError(t *testing.T) {
 			underlyingErr:  errors.New("timeout"),
 			wantContains:   []string{"lionair", "timeout"},
 			wantUnwrapable: true,
+			wantRetryable:  false,
 		},
 	}
 
@@ -42,6 +45,37 @@ func TestProviderError(t *testing.T) {
 			if tt.wantUnwrapable {
 				assert.True(t, errors.Is(err, tt.underlyingErr))
 			}
+
+			assert.Equal(t, tt.wantRetryable, err.Retryable)
+		})
+	}
+}
+
+func TestNewRetryableProviderError(t *testing.T) {
+	tests := []struct {
+		name          string
+		provider      string
+		underlyingErr error
+	}{
+		{
+			name:          "retryable network error",
+			provider:      "garuda",
+			underlyingErr: errors.New("temporary network failure"),
+		},
+		{
+			name:          "retryable rate limit error",
+			provider:      "lionair",
+			underlyingErr: errors.New("rate limit exceeded"),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := NewRetryableProviderError(tt.provider, tt.underlyingErr)
+
+			assert.Contains(t, err.Error(), tt.provider)
+			assert.True(t, errors.Is(err, tt.underlyingErr))
+			assert.True(t, err.Retryable)
 		})
 	}
 }
