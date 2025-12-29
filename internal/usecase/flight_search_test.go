@@ -589,9 +589,24 @@ func TestSearch_RankingScoresCalculated(t *testing.T) {
 	response, err := uc.Search(ctx, domain.SearchCriteria{}, SearchOptions{})
 
 	require.NoError(t, err)
+	require.Len(t, response.Flights, 2)
+
+	// With the new algorithm (lower is better), the best flight has score 0
+	// The second flight should have a non-zero score
+	var scores []float64
 	for _, f := range response.Flights {
-		assert.Greater(t, f.RankingScore, float64(0))
+		scores = append(scores, f.RankingScore)
 	}
+
+	// At least one flight should have non-zero score (proving calculation happened)
+	hasNonZero := false
+	for _, s := range scores {
+		if s > 0 {
+			hasNonZero = true
+			break
+		}
+	}
+	assert.True(t, hasNonZero, "At least one flight should have a non-zero ranking score")
 }
 
 // TestSearch_ConcurrentProviderCalls verifies providers are called concurrently.
@@ -690,6 +705,7 @@ func TestApplyFilters_Basic(t *testing.T) {
 }
 
 // TestCalculateRankingScores tests the ranking score calculation.
+// Note: Comprehensive ranking tests are in ranking_test.go
 func TestCalculateRankingScores(t *testing.T) {
 	tests := []struct {
 		name           string
@@ -703,18 +719,18 @@ func TestCalculateRankingScores(t *testing.T) {
 			expectedLen: 0,
 		},
 		{
-			name: "single flight gets max scores",
+			name: "single flight gets zero score",
 			flights: []domain.Flight{
 				createTestFlight("1", "test", 1000000, 120, 0),
 			},
 			expectedLen: 1,
 			checkScoreFunc: func(t *testing.T, result []domain.Flight) {
-				// Should get max score (40 + 30 + 30 = 100 for direct flight)
-				assert.Equal(t, float64(100), result[0].RankingScore)
+				// Single flight: all normalized values are 0 (min == max), so score = 0
+				assert.Equal(t, float64(0), result[0].RankingScore)
 			},
 		},
 		{
-			name: "cheaper flight scores higher on price",
+			name: "cheaper flight scores lower (better)",
 			flights: []domain.Flight{
 				createTestFlight("expensive", "test", 1500000, 120, 0),
 				createTestFlight("cheap", "test", 500000, 120, 0),
@@ -729,11 +745,12 @@ func TestCalculateRankingScores(t *testing.T) {
 						expensiveScore = f.RankingScore
 					}
 				}
-				assert.Greater(t, cheapScore, expensiveScore)
+				// Lower score = better (new algorithm)
+				assert.Less(t, cheapScore, expensiveScore)
 			},
 		},
 		{
-			name: "direct flight scores higher on stops",
+			name: "direct flight scores lower (better)",
 			flights: []domain.Flight{
 				createTestFlight("two-stops", "test", 1000000, 120, 2),
 				createTestFlight("one-stop", "test", 1000000, 120, 1),
@@ -745,12 +762,13 @@ func TestCalculateRankingScores(t *testing.T) {
 				for _, f := range result {
 					scores[f.ID] = f.RankingScore
 				}
-				assert.Greater(t, scores["direct"], scores["one-stop"])
-				assert.Greater(t, scores["one-stop"], scores["two-stops"])
+				// Lower score = better (new algorithm)
+				assert.Less(t, scores["direct"], scores["one-stop"])
+				assert.Less(t, scores["one-stop"], scores["two-stops"])
 			},
 		},
 		{
-			name: "shorter duration scores higher",
+			name: "shorter duration scores lower (better)",
 			flights: []domain.Flight{
 				createTestFlight("long", "test", 1000000, 240, 0),
 				createTestFlight("short", "test", 1000000, 60, 0),
@@ -765,14 +783,15 @@ func TestCalculateRankingScores(t *testing.T) {
 						longScore = f.RankingScore
 					}
 				}
-				assert.Greater(t, shortScore, longScore)
+				// Lower score = better (new algorithm)
+				assert.Less(t, shortScore, longScore)
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := calculateRankingScores(tt.flights)
+			result := CalculateRankingScores(tt.flights)
 			assert.Len(t, result, tt.expectedLen)
 			if tt.checkScoreFunc != nil {
 				tt.checkScoreFunc(t, result)
@@ -782,14 +801,15 @@ func TestCalculateRankingScores(t *testing.T) {
 }
 
 // TestSortFlights tests the sorting functions directly.
+// Note: Comprehensive sorting tests are in ranking_test.go
 func TestSortFlights(t *testing.T) {
 	tests := []struct {
-		name           string
-		flights        []domain.Flight
-		sortBy         domain.SortOption
-		expectedLen    int
-		expectedFirst  string
-		checkOriginal  bool
+		name          string
+		flights       []domain.Flight
+		sortBy        domain.SortOption
+		expectedLen   int
+		expectedFirst string
+		checkOriginal bool
 	}{
 		{
 			name:          "empty slice",
@@ -835,7 +855,7 @@ func TestSortFlights(t *testing.T) {
 				originalFirst = tt.flights[0].ID
 			}
 
-			result := sortFlights(tt.flights, tt.sortBy)
+			result := SortFlights(tt.flights, tt.sortBy)
 
 			assert.Len(t, result, tt.expectedLen)
 			if tt.expectedFirst != "" && len(result) > 0 {
