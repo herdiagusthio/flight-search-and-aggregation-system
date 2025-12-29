@@ -9,6 +9,8 @@ import (
 	"github.com/flight-search/flight-search-and-aggregation-system/internal/domain"
 )
 
+//go:generate mockgen -destination=flight_search_mock.go -package=usecase github.com/flight-search/flight-search-and-aggregation-system/internal/usecase FlightSearchUseCase
+
 // Default timeout values.
 const (
 	DefaultGlobalTimeout   = 5 * time.Second

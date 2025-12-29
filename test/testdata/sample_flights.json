@@ -1,0 +1,67 @@
+{
+  "description": "Sample test flight data for unit tests",
+  "flights": [
+    {
+      "id": "TEST-001",
+      "flight_number": "GA-100",
+      "airline": {
+        "code": "GA",
+        "name": "Garuda Indonesia"
+      },
+      "departure": {
+        "airport": "CGK",
+        "city": "Jakarta",
+        "time": "2025-12-15T08:00:00+07:00",
+        "terminal": "3"
+      },
+      "arrival": {
+        "airport": "DPS",
+        "city": "Denpasar",
+        "time": "2025-12-15T10:30:00+08:00",
+        "terminal": "D"
+      },
+      "duration_minutes": 150,
+      "stops": 0,
+      "price": {
+        "amount": 1250000,
+        "currency": "IDR"
+      },
+      "class": "economy",
+      "baggage": {
+        "cabin_kg": 7,
+        "checked_kg": 20
+      }
+    },
+    {
+      "id": "TEST-002",
+      "flight_number": "JT-200",
+      "airline": {
+        "code": "JT",
+        "name": "Lion Air"
+      },
+      "departure": {
+        "airport": "CGK",
+        "city": "Jakarta",
+        "time": "2025-12-15T10:00:00+07:00",
+        "terminal": "1"
+      },
+      "arrival": {
+        "airport": "DPS",
+        "city": "Denpasar",
+        "time": "2025-12-15T12:45:00+08:00",
+        "terminal": "I"
+      },
+      "duration_minutes": 165,
+      "stops": 1,
+      "price": {
+        "amount": 850000,
+        "currency": "IDR"
+      },
+      "class": "economy",
+      "baggage": {
+        "cabin_kg": 7,
+        "checked_kg": 15
+      }
+    }
+  ]
+}
