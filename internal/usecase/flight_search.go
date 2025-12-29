@@ -143,8 +143,8 @@ func (uc *flightSearchUseCase) Search(ctx context.Context, criteria domain.Searc
 		return nil, domain.ErrAllProvidersFailed
 	}
 
-	// Apply filtering (delegates to filter logic)
-	filtered := applyFilters(allFlights, opts.Filters)
+	// Apply filtering using the dedicated filter module
+	filtered := ApplyFilters(allFlights, opts.Filters)
 
 	// Calculate ranking scores (delegates to ranking logic)
 	ranked := calculateRankingScores(filtered)
@@ -194,22 +194,6 @@ func (uc *flightSearchUseCase) queryProvider(ctx context.Context, provider domai
 		Error:    err,
 		Duration: time.Since(start),
 	}
-}
-
-// applyFilters applies filter options to the flight list.
-// This is a stub that will be replaced by TKT-09 integration.
-func applyFilters(flights []domain.Flight, opts *domain.FilterOptions) []domain.Flight {
-	if opts == nil {
-		return flights
-	}
-
-	result := make([]domain.Flight, 0, len(flights))
-	for _, f := range flights {
-		if opts.MatchesFlight(f) {
-			result = append(result, f)
-		}
-	}
-	return result
 }
 
 // calculateRankingScores calculates the ranking score for each flight.

@@ -1,6 +1,9 @@
 package domain
 
-import "time"
+import (
+	"strings"
+	"time"
+)
 
 // SortOption defines the available sorting options for flight results.
 type SortOption string
@@ -90,11 +93,12 @@ func (f *FilterOptions) MatchesFlight(flight Flight) bool {
 		return false
 	}
 
-	// Check airline filter
+	// Check airline filter (case-insensitive matching)
 	if len(f.Airlines) > 0 {
 		found := false
+		flightCode := strings.ToUpper(flight.Airline.Code)
 		for _, code := range f.Airlines {
-			if code == flight.Airline.Code {
+			if strings.ToUpper(code) == flightCode {
 				found = true
 				break
 			}

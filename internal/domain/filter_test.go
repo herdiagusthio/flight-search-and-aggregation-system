@@ -218,6 +218,18 @@ func TestFilterOptions_MatchesFlight(t *testing.T) {
 			flight: baseFlight,
 			want:   false,
 		},
+		{
+			name:   "airline filter case insensitive - lowercase matches uppercase",
+			filter: &FilterOptions{Airlines: []string{"ga"}},
+			flight: baseFlight,
+			want:   true,
+		},
+		{
+			name: "airline filter case insensitive - mixed case in list",
+			filter: &FilterOptions{Airlines: []string{"Ga", "jT"}},
+			flight: baseFlight,
+			want: true,
+		},
 	}
 
 	for _, tt := range tests {
