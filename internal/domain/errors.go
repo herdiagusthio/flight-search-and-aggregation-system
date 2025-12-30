@@ -26,6 +26,14 @@ var (
 	// ErrNoFlightsFound indicates no flights matched the search criteria.
 	// This is not necessarily an error but useful for explicit handling.
 	ErrNoFlightsFound = errors.New("no flights found")
+
+	// ErrInvalidFlightTimes indicates flight arrival time is not after departure time.
+	// This represents invalid data from a provider.
+	ErrInvalidFlightTimes = errors.New("invalid flight times")
+
+	// ErrMissingRequiredField indicates a required field is missing from flight data.
+	// This represents incomplete data from a provider.
+	ErrMissingRequiredField = errors.New("missing required field")
 )
 
 // ProviderError wraps an error with provider context.

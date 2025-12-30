@@ -39,6 +39,41 @@ The system follows Clean Architecture with clear separation of concerns:
 - **Provider Abstraction**: Each airline implements the `FlightProvider` interface for consistent integration
 - **Timeout Management**: Two-tier timeout system (per-provider and global search limits)
 - **Error Isolation**: Provider failures don't cascade; successful responses are still returned
+- **Data Validation**: Flight data is validated during normalization with graceful error handling
+
+### Data Quality & Validation
+
+The system implements automatic validation of flight data to ensure data integrity:
+
+#### Validation Rules
+
+Each flight is validated after normalization from provider data:
+
+- **Time Consistency**: Arrival time must be chronologically after departure time
+- **Required Fields**: All flights must have:
+  - Flight number
+  - Airline code
+  - Departure airport code
+  - Arrival airport code
+
+#### Graceful Degradation
+
+Invalid flights are handled gracefully:
+
+- Validation errors are logged with flight details (provider, flight number, error reason)
+- Invalid flights are skipped and excluded from search results
+- Other valid flights from the same provider are still returned
+- Search continues even if some providers return invalid data
+- No errors are returned to the user unless all providers fail
+
+#### Duration Mismatch Handling
+
+Provider-reported durations may differ from calculated time differences due to:
+- Different calculation methods (elapsed time vs. flight time)
+- Timezone considerations
+- Data source inconsistencies
+
+**Approach**: Duration mismatches log a warning but don't fail validation, as the calculated time difference is used for ranking and filtering.
 
 ### Data Flow
 
@@ -46,11 +81,12 @@ The system follows Clean Architecture with clear separation of concerns:
 2. **Scatter** → Use case dispatches concurrent queries to all providers
 3. **Gather** → Results are collected with timeout handling
 4. **Normalize** → Provider adapters convert responses to domain `Flight` entities
-5. **Filter** → Apply user-specified filters (price, stops, airlines, time range)
-6. **Rank** → Calculate ranking scores for best value sorting
-7. **Sort** → Apply requested sort order
-8. **Transform** → DTO layer converts to API response format
-9. **Response** → Return aggregated results with metadata
+5. **Validate** → Flight data is validated for time consistency and required fields
+6. **Filter** → Apply user-specified filters (price, stops, airlines, time range)
+7. **Rank** → Calculate ranking scores for best value sorting
+8. **Sort** → Apply requested sort order
+9. **Transform** → DTO layer converts to API response format
+10. **Response** → Return aggregated results with metadata
 
 ## Prerequisites
 

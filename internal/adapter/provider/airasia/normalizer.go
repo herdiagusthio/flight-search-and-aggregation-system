@@ -19,14 +19,35 @@ const airlineCode = "QZ"
 // It skips flights with invalid data (e.g., unparseable datetime).
 func normalize(flights []AirAsiaFlight) []domain.Flight {
 	result := make([]domain.Flight, 0, len(flights))
+	skippedCount := 0
 
 	for _, f := range flights {
 		normalized, ok := normalizeSingle(f)
 		if !ok {
 			// Skip flights with invalid data
+			// TODO: Add structured logging when logger is available
+			skippedCount++
 			continue
 		}
+
+		// Validate the normalized flight
+		if err := normalized.Validate(); err != nil {
+			// Log validation error with flight details
+			// TODO: Replace with structured logging (WARN level)
+			fmt.Printf("[WARN] [%s] Flight %s validation failed: %v\n",
+				ProviderName, normalized.FlightNumber, err)
+			skippedCount++
+			continue
+		}
+
 		result = append(result, normalized)
+	}
+
+	// Log summary if any flights were skipped
+	if skippedCount > 0 {
+		// TODO: Replace with structured logging (INFO level)
+		fmt.Printf("[INFO] [%s] Skipped %d invalid flights out of %d total\n",
+			ProviderName, skippedCount, len(flights))
 	}
 
 	return result

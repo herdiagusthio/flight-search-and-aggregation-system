@@ -15,14 +15,35 @@ const ProviderName = "lion_air"
 // normalize converts a slice of Lion Air flights to domain Flight entities.
 func normalize(lionAirFlights []LionAirFlight) []domain.Flight {
 	result := make([]domain.Flight, 0, len(lionAirFlights))
+	skippedCount := 0
 
 	for _, f := range lionAirFlights {
 		normalized, err := normalizeFlight(f)
 		if err != nil {
 			// Skip flights that cannot be normalized
+			// TODO: Add structured logging when logger is available
+			skippedCount++
 			continue
 		}
+
+		// Validate the normalized flight
+		if err := normalized.Validate(); err != nil {
+			// Log validation error with flight details
+			// TODO: Replace with structured logging (WARN level)
+			fmt.Printf("[WARN] [%s] Flight %s validation failed: %v\n",
+				ProviderName, normalized.FlightNumber, err)
+			skippedCount++
+			continue
+		}
+
 		result = append(result, normalized)
+	}
+
+	// Log summary if any flights were skipped
+	if skippedCount > 0 {
+		// TODO: Replace with structured logging (INFO level)
+		fmt.Printf("[INFO] [%s] Skipped %d invalid flights out of %d total\n",
+			ProviderName, skippedCount, len(lionAirFlights))
 	}
 
 	return result

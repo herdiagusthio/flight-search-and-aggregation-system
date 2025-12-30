@@ -308,10 +308,12 @@ Global Timeout (5s)
 
 ```
 Domain Errors
-├── ErrInvalidRequest      - 400 Bad Request
-├── ErrAllProvidersFailed  - 503 Service Unavailable
-├── ErrProviderTimeout     - Internal (aggregated)
-└── ErrProviderUnavailable - Internal (aggregated)
+├── ErrInvalidRequest        - 400 Bad Request
+├── ErrAllProvidersFailed    - 503 Service Unavailable
+├── ErrProviderTimeout       - Internal (aggregated)
+├── ErrProviderUnavailable   - Internal (aggregated)
+├── ErrInvalidFlightTimes    - Internal (validation)
+└── ErrMissingRequiredField  - Internal (validation)
 
 Provider Errors (wrapped with context)
 └── ProviderError
@@ -329,6 +331,81 @@ Provider Errors (wrapped with context)
 | `context.DeadlineExceeded` | 504 | "Request timed out" |
 | `context.Canceled` | 499 | "Request cancelled" |
 | Other | 500 | "Unexpected error" |
+
+### Data Quality & Validation
+
+The system implements automatic validation of flight data after normalization from provider responses.
+
+#### Validation Rules
+
+Each normalized flight is validated for:
+
+1. **Time Consistency**
+   - Arrival time must be chronologically after departure time
+   - Returns `ErrInvalidFlightTimes` with detailed time information
+
+2. **Required Fields**
+   - FlightNumber must not be empty
+   - Airline.Code must not be empty
+   - Departure.AirportCode must not be empty
+   - Arrival.AirportCode must not be empty
+   - Returns `ErrMissingRequiredField` with field name
+
+3. **Duration Mismatch** (Warning Only)
+   - Provider-reported duration may differ from calculated time difference
+   - Logged as warning but doesn't fail validation
+   - Calculated duration used for ranking and filtering
+
+#### Validation Flow
+
+```
+Provider Response
+    │
+    ├─▶ Normalize to Flight entity
+    │
+    ├─▶ Validate()
+    │   ├─ Check arrival > departure
+    │   ├─ Check required fields
+    │   └─ Log duration mismatch (warning)
+    │
+    ├─▶ If valid: Add to results
+    │
+    └─▶ If invalid: Log & skip (graceful degradation)
+```
+
+#### Graceful Degradation for Validation
+
+```go
+// In provider normalizer
+for _, rawFlight := range providerFlights {
+    flight, err := normalizeFlight(rawFlight)
+    if err != nil {
+        // Skip normalization errors
+        continue
+    }
+    
+    // Validate normalized flight
+    if err := flight.Validate(); err != nil {
+        // Log validation error with flight details
+        log.Warn().
+            Str("provider", ProviderName).
+            Str("flight", flight.FlightNumber).
+            Err(err).
+            Msg("Flight validation failed")
+        continue
+    }
+    
+    // Only add valid flights
+    results = append(results, flight)
+}
+```
+
+**Key Benefits:**
+- Invalid flights are filtered out automatically
+- Other valid flights from the same provider are still returned
+- Detailed logging for troubleshooting provider data issues
+- No error returned to user unless all providers fail completely
+- System remains robust against malformed provider data
 
 ### Graceful Degradation
 

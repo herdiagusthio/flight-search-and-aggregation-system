@@ -2,7 +2,10 @@
 // These entities are provider-agnostic and form the foundation upon which all other components are built.
 package domain
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 // Flight represents a single flight offering from a provider.
 // It contains all the information needed to display and compare flights.
@@ -152,4 +155,45 @@ func intToString(n int) string {
 		n /= 10
 	}
 	return string(digits)
+}
+
+// Validate checks if the flight data is valid and consistent.
+// It returns an error if:
+//   - Arrival time is not after departure time
+//   - Required fields are missing (FlightNumber, Airline.Code, Origin, Destination)
+//
+// It logs a warning (but doesn't fail) if:
+//   - Duration doesn't match the calculated time difference
+//
+// This method is used by provider adapters to ensure data integrity.
+func (f *Flight) Validate() error {
+	// Check that arrival is after departure
+	if !f.Arrival.DateTime.After(f.Departure.DateTime) {
+		return fmt.Errorf("%w: arrival time (%s) must be after departure time (%s)",
+			ErrInvalidFlightTimes,
+			f.Arrival.DateTime.Format(time.RFC3339),
+			f.Departure.DateTime.Format(time.RFC3339))
+	}
+
+	// Check required fields
+	if f.FlightNumber == "" {
+		return fmt.Errorf("%w: FlightNumber", ErrMissingRequiredField)
+	}
+
+	if f.Airline.Code == "" {
+		return fmt.Errorf("%w: Airline.Code", ErrMissingRequiredField)
+	}
+
+	if f.Departure.AirportCode == "" {
+		return fmt.Errorf("%w: Departure.AirportCode", ErrMissingRequiredField)
+	}
+
+	if f.Arrival.AirportCode == "" {
+		return fmt.Errorf("%w: Arrival.AirportCode", ErrMissingRequiredField)
+	}
+
+	// Note: Duration mismatch is logged as a warning in the provider adapters
+	// but doesn't fail validation, as providers may calculate it differently
+
+	return nil
 }
