@@ -24,7 +24,7 @@ const docTemplate = `{
     "paths": {
         "/flights/search": {
             "post": {
-                "description": "Search for available flights across multiple airline providers (Garuda, Lion Air, Batik Air, AirAsia). Supports filtering by price, stops, airlines, departure time, arrival time, and flight duration.",
+                "description": "Search for available flights across multiple airline providers (Garuda, Lion Air, Batik Air, AirAsia). Supports filtering by price, stops, airlines, departure time, arrival time, and flight duration. All filters are optional and can be combined.",
                 "consumes": [
                     "application/json"
                 ],
@@ -37,7 +37,7 @@ const docTemplate = `{
                 "summary": "Search for flights",
                 "parameters": [
                     {
-                        "description": "Search criteria with optional filters (maxPrice, maxStops, airlines, departureTimeRange, arrivalTimeRange, durationRange)",
+                        "description": "Search criteria with optional filters. Example with all filters: {\\",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -48,13 +48,13 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Successful search with flight results",
+                        "description": "Successful search with flight results. Returns empty array if no flights match filters.",
                         "schema": {
                             "$ref": "#/definitions/internal_adapter_http.SwaggerSearchResponse"
                         }
                     },
                     "400": {
-                        "description": "Validation error - invalid request parameters",
+                        "description": "Validation error - invalid request parameters (e.g., invalid time format, minMinutes \u003e maxMinutes, missing required fields)",
                         "schema": {
                             "$ref": "#/definitions/internal_adapter_http.SwaggerErrorResponse"
                         }

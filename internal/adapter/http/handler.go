@@ -28,13 +28,13 @@ func NewFlightHandler(uc usecase.FlightSearchUseCase) *FlightHandler {
 // SearchFlights handles POST /api/v1/flights/search
 //
 //	@Summary		Search for flights
-//	@Description	Search for available flights across multiple airline providers (Garuda, Lion Air, Batik Air, AirAsia). Supports filtering by price, stops, airlines, departure time, arrival time, and flight duration.
+//	@Description	Search for available flights across multiple airline providers (Garuda, Lion Air, Batik Air, AirAsia). Supports filtering by price, stops, airlines, departure time, arrival time, and flight duration. All filters are optional and can be combined.
 //	@Tags			flights
 //	@Accept			json
 //	@Produce		json
-//	@Param			request	body		SearchFlightsRequest	true	"Search criteria with optional filters (maxPrice, maxStops, airlines, departureTimeRange, arrivalTimeRange, durationRange)"
-//	@Success		200		{object}	SwaggerSearchResponse	"Successful search with flight results"
-//	@Failure		400		{object}	SwaggerErrorResponse	"Validation error - invalid request parameters"
+//	@Param			request	body		SearchFlightsRequest	true	"Search criteria with optional filters. Example with all filters: {\"origin\":\"CGK\",\"destination\":\"DPS\",\"departureDate\":\"2025-12-15\",\"passengers\":1,\"class\":\"economy\",\"filters\":{\"maxPrice\":1200000,\"maxStops\":1,\"airlines\":[\"GA\",\"JT\"],\"departureTimeRange\":{\"start\":\"06:00\",\"end\":\"18:00\"},\"arrivalTimeRange\":{\"start\":\"08:00\",\"end\":\"20:00\"},\"durationRange\":{\"minMinutes\":60,\"maxMinutes\":240}},\"sortBy\":\"best\"}"
+//	@Success		200		{object}	SwaggerSearchResponse	"Successful search with flight results. Returns empty array if no flights match filters."
+//	@Failure		400		{object}	SwaggerErrorResponse	"Validation error - invalid request parameters (e.g., invalid time format, minMinutes > maxMinutes, missing required fields)"
 //	@Failure		503		{object}	SwaggerErrorResponse	"Service unavailable - all providers failed"
 //	@Failure		504		{object}	SwaggerErrorResponse	"Gateway timeout - request took too long"
 //	@Router			/flights/search [post]

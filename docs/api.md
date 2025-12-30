@@ -60,6 +60,14 @@ Content-Type: application/json
     "departureTimeRange": {
       "start": "06:00",
       "end": "12:00"
+    },
+    "arrivalTimeRange": {
+      "start": "08:00",
+      "end": "17:00"
+    },
+    "durationRange": {
+      "minMinutes": 60,
+      "maxMinutes": 240
     }
   },
   "sortBy": "best"
@@ -80,19 +88,44 @@ Content-Type: application/json
 
 #### Filter Object
 
+All filter fields are optional. Filters are combined with AND logic.
+
 | Field | Type | Description | Example |
 |-------|------|-------------|---------|
 | `maxPrice` | number | Maximum price in IDR | `2000000` |
 | `maxStops` | integer | Maximum stops (0 = direct flights only) | `1` |
-| `airlines` | array | Airline codes to include | `["GA", "JT", "ID"]` |
-| `departureTimeRange` | object | Departure time window | See below |
+| `airlines` | array | Airline codes to include (case-sensitive) | `["GA", "JT", "ID"]` |
+| `departureTimeRange` | object | Departure time window (time-of-day only) | `{"start": "06:00", "end": "12:00"}` |
+| `arrivalTimeRange` | object | Arrival time window (time-of-day only) | `{"start": "08:00", "end": "17:00"}` |
+| `durationRange` | object | Flight duration range in minutes | `{"minMinutes": 60, "maxMinutes": 240}` |
 
 #### Time Range Object
 
-| Field | Type | Description | Example |
-|-------|------|-------------|---------|
-| `start` | string | Start time in HH:MM format | `"06:00"` |
-| `end` | string | End time in HH:MM format | `"12:00"` |
+Used for `departureTimeRange` and `arrivalTimeRange` filters. Compares time-of-day only (ignores date and timezone).
+
+| Field | Type | Required | Description | Example |
+|-------|------|----------|-------------|---------|
+| `start` | string | ✅ Yes | Start time in HH:MM format (24-hour) | `"06:00"` |
+| `end` | string | ✅ Yes | End time in HH:MM format (24-hour) | `"12:00"` |
+
+**Validation:**
+- Both `start` and `end` are required
+- Must be in HH:MM format (hours: 00-23, minutes: 00-59)
+- `start` must be before `end` (no overnight ranges)
+
+#### Duration Range Object
+
+Used for `durationRange` filter to limit flight duration.
+
+| Field | Type | Required | Description | Example |
+|-------|------|----------|-------------|---------|
+| `minMinutes` | integer | No | Minimum duration in minutes | `60` (1 hour) |
+| `maxMinutes` | integer | No | Maximum duration in minutes | `240` (4 hours) |
+
+**Validation:**
+- At least one of `minMinutes` or `maxMinutes` must be specified
+- Values must be positive integers
+- If both specified, `minMinutes` must be ≤ `maxMinutes`
 
 #### Sort Options
 
@@ -218,13 +251,21 @@ Returned when request validation fails.
 | Field | Error | Cause |
 |-------|-------|-------|
 | `origin` | "origin is required" | Missing origin field |
-| `origin` | "origin must be a valid 3-letter IATA airport code" | Invalid format |
-| `destination` | "origin and destination must be different" | Same airport |
+| `origin` | "origin must be a valid 3-letter IATA airport code" | Invalid format (e.g., lowercase, numbers, wrong length) |
+| `destination` | "origin and destination must be different" | Same airport for origin and destination |
 | `departureDate` | "departureDate is required" | Missing date |
 | `departureDate` | "departureDate must be in YYYY-MM-DD format" | Invalid format |
-| `departureDate` | "departureDate cannot be in the past" | Past date |
+| `departureDate` | "departureDate cannot be in the past" | Past date (disabled in mock mode) |
 | `passengers` | "passengers must be at least 1" | Zero or negative |
 | `passengers` | "passengers cannot exceed 9" | Too many passengers |
+| `filters.departureTimeRange.start` | "start time must be in HH:MM format" | Invalid time format |
+| `filters.departureTimeRange` | "start time must be before end time" | Invalid range (start ≥ end) |
+| `filters.arrivalTimeRange.start` | "start time must be in HH:MM format" | Invalid time format |
+| `filters.arrivalTimeRange` | "start time must be before end time" | Invalid range (start ≥ end) |
+| `filters.durationRange` | "minMinutes must be less than or equal to maxMinutes" | Invalid range (min > max) |
+| `filters.durationRange` | "minMinutes must be positive" | Negative or zero value |
+| `filters.maxPrice` | "maxPrice must be positive" | Negative or zero value |
+| `filters.maxStops` | "maxStops must be non-negative" | Negative value |
 
 ##### 503 Service Unavailable
 
@@ -322,6 +363,76 @@ curl -X POST http://localhost:8080/api/v1/flights/search \
       }
     },
     "sortBy": "departure"
+  }'
+```
+
+### Business Hours Arrival
+
+```bash
+curl -X POST http://localhost:8080/api/v1/flights/search \
+  -H "Content-Type: application/json" \
+  -d '{
+    "origin": "CGK",
+    "destination": "DPS",
+    "departureDate": "2025-12-15",
+    "passengers": 1,
+    "filters": {
+      "arrivalTimeRange": {
+        "start": "08:00",
+        "end": "17:00"
+      }
+    },
+    "sortBy": "best"
+  }'
+```
+
+### Short Flights Only (Under 3 Hours)
+
+```bash
+curl -X POST http://localhost:8080/api/v1/flights/search \
+  -H "Content-Type: application/json" \
+  -d '{
+    "origin": "CGK",
+    "destination": "DPS",
+    "departureDate": "2025-12-15",
+    "passengers": 1,
+    "filters": {
+      "durationRange": {
+        "maxMinutes": 180
+      }
+    },
+    "sortBy": "duration"
+  }'
+```
+
+### Combined Filters: Budget Morning Flights with Business Hours Arrival
+
+```bash
+curl -X POST http://localhost:8080/api/v1/flights/search \
+  -H "Content-Type: application/json" \
+  -d '{
+    "origin": "CGK",
+    "destination": "DPS",
+    "departureDate": "2025-12-15",
+    "passengers": 1,
+    "class": "economy",
+    "filters": {
+      "maxPrice": 1200000,
+      "maxStops": 0,
+      "departureTimeRange": {
+        "start": "05:00",
+        "end": "09:00"
+      },
+      "arrivalTimeRange": {
+        "start": "08:00",
+        "end": "12:00"
+      },
+      "durationRange": {
+        "minMinutes": 60,
+        "maxMinutes": 180
+      }
+    },
+    "sortBy": "price"
   }'
 ```
 

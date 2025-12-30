@@ -310,10 +310,11 @@ paths:
       - application/json
       description: Search for available flights across multiple airline providers
         (Garuda, Lion Air, Batik Air, AirAsia). Supports filtering by price, stops,
-        airlines, departure time, arrival time, and flight duration.
+        airlines, departure time, arrival time, and flight duration. All filters are
+        optional and can be combined.
       parameters:
-      - description: Search criteria with optional filters (maxPrice, maxStops, airlines,
-          departureTimeRange, arrivalTimeRange, durationRange)
+      - description: 'Search criteria with optional filters. Example with all filters:
+          {\'
         in: body
         name: request
         required: true
@@ -323,11 +324,13 @@ paths:
       - application/json
       responses:
         "200":
-          description: Successful search with flight results
+          description: Successful search with flight results. Returns empty array
+            if no flights match filters.
           schema:
             $ref: '#/definitions/internal_adapter_http.SwaggerSearchResponse'
         "400":
-          description: Validation error - invalid request parameters
+          description: Validation error - invalid request parameters (e.g., invalid
+            time format, minMinutes > maxMinutes, missing required fields)
           schema:
             $ref: '#/definitions/internal_adapter_http.SwaggerErrorResponse'
         "503":

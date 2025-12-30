@@ -494,6 +494,533 @@ curl -X POST http://localhost:8080/api/v1/flights/search \
 }
 ```
 
+## Filtering
+
+The Flight Search API provides powerful filtering capabilities to help users find flights that match specific criteria. Filters can be combined to create complex queries.
+
+### Available Filters
+
+| Filter | Type | Description | Example |
+|--------|------|-------------|---------|
+| `maxPrice` | number | Maximum price in IDR | `1000000` |
+| `maxStops` | integer | Maximum number of stops (0 = direct) | `0` |
+| `airlines` | array | Airline codes to include | `["GA", "JT"]` |
+| `departureTimeRange` | object | Departure time window | `{"start": "06:00", "end": "12:00"}` |
+| `arrivalTimeRange` | object | Arrival time window | `{"start": "08:00", "end": "17:00"}` |
+| `durationRange` | object | Flight duration limits | `{"minMinutes": 60, "maxMinutes": 180}` |
+
+### Filter Behavior
+
+- **All filters are optional** - Omit filters to get unfiltered results
+- **Filters are combined with AND logic** - Flights must match all specified filters
+- **Empty filter object** - Treated the same as no filters
+- **Invalid filter values** - Return 400 Bad Request with validation details
+
+### Duration Range Filter
+
+Filter flights by total flight duration in minutes.
+
+**Fields:**
+- `minMinutes` (integer, optional): Minimum duration in minutes
+- `maxMinutes` (integer, optional): Maximum duration in minutes
+
+**Validation:**
+- Both fields are optional; at least one must be specified
+- Values must be positive integers
+- `minMinutes` must be ≤ `maxMinutes` if both are specified
+
+**Examples:**
+
+```bash
+# Flights under 2 hours (120 minutes)
+{
+  "filters": {
+    "durationRange": {
+      "maxMinutes": 120
+    }
+  }
+}
+```
+
+```bash
+# Flights between 1-3 hours
+{
+  "filters": {
+    "durationRange": {
+      "minMinutes": 60,
+      "maxMinutes": 180
+    }
+  }
+}
+```
+
+```bash
+# Only long-haul flights (over 4 hours)
+{
+  "filters": {
+    "durationRange": {
+      "minMinutes": 240
+    }
+  }
+}
+```
+
+### Arrival Time Range Filter
+
+Filter flights by arrival time of day (time-only, ignores date and timezone).
+
+**Fields:**
+- `start` (string, required): Start time in HH:MM format (24-hour)
+- `end` (string, required): End time in HH:MM format (24-hour)
+
+**Validation:**
+- Both `start` and `end` are required
+- Must be in HH:MM format (e.g., "08:00", "17:30")
+- Hours: 00-23, Minutes: 00-59
+- `start` must be before `end` (no overnight ranges)
+
+**Examples:**
+
+```bash
+# Business hours arrival (8 AM - 5 PM)
+{
+  "filters": {
+    "arrivalTimeRange": {
+      "start": "08:00",
+      "end": "17:00"
+    }
+  }
+}
+```
+
+```bash
+# Morning arrival only
+{
+  "filters": {
+    "arrivalTimeRange": {
+      "start": "06:00",
+      "end": "12:00"
+    }
+  }
+}
+```
+
+```bash
+# Evening arrival for hotel check-in
+{
+  "filters": {
+    "arrivalTimeRange": {
+      "start": "18:00",
+      "end": "23:00"
+    }
+  }
+}
+```
+
+### Departure Time Range Filter
+
+Filter flights by departure time of day (time-only, ignores date and timezone).
+
+**Fields:**
+- `start` (string, required): Start time in HH:MM format (24-hour)
+- `end` (string, required): End time in HH:MM format (24-hour)
+
+**Validation:**
+- Both `start` and `end` are required
+- Must be in HH:MM format
+- Hours: 00-23, Minutes: 00-59
+- `start` must be before `end`
+
+**Example:**
+
+```bash
+# Early morning departure (red-eye flights)
+{
+  "filters": {
+    "departureTimeRange": {
+      "start": "00:00",
+      "end": "06:00"
+    }
+  }
+}
+```
+
+### Combined Filter Examples
+
+Filters can be combined to create highly specific queries.
+
+**Example 1: Budget direct flights, morning departure**
+
+```json
+{
+  "origin": "CGK",
+  "destination": "DPS",
+  "departureDate": "2025-12-15",
+  "passengers": 1,
+  "filters": {
+    "maxPrice": 800000,
+    "maxStops": 0,
+    "departureTimeRange": {
+      "start": "06:00",
+      "end": "12:00"
+    }
+  },
+  "sortBy": "price"
+}
+```
+
+**Example 2: Quick flights with specific airlines**
+
+```json
+{
+  "origin": "CGK",
+  "destination": "SUB",
+  "departureDate": "2025-12-20",
+  "passengers": 2,
+  "filters": {
+    "airlines": ["GA", "ID"],
+    "durationRange": {
+      "maxMinutes": 90
+    }
+  },
+  "sortBy": "duration"
+}
+```
+
+**Example 3: Business travel optimization (morning departure, business hours arrival)**
+
+```json
+{
+  "origin": "CGK",
+  "destination": "DPS",
+  "departureDate": "2025-12-15",
+  "passengers": 1,
+  "class": "business",
+  "filters": {
+    "departureTimeRange": {
+      "start": "05:00",
+      "end": "09:00"
+    },
+    "arrivalTimeRange": {
+      "start": "08:00",
+      "end": "12:00"
+    },
+    "maxStops": 0
+  },
+  "sortBy": "best"
+}
+```
+
+**Example 4: All filters combined**
+
+```json
+{
+  "origin": "CGK",
+  "destination": "DPS",
+  "departureDate": "2025-12-15",
+  "passengers": 1,
+  "filters": {
+    "maxPrice": 1200000,
+    "maxStops": 1,
+    "airlines": ["GA", "JT", "ID"],
+    "departureTimeRange": {
+      "start": "06:00",
+      "end": "18:00"
+    },
+    "arrivalTimeRange": {
+      "start": "08:00",
+      "end": "20:00"
+    },
+    "durationRange": {
+      "minMinutes": 60,
+      "maxMinutes": 240
+    }
+  },
+  "sortBy": "best"
+}
+```
+
+### Filter Validation Errors
+
+When filter validation fails, the API returns a 400 Bad Request with detailed error information:
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "validation_error",
+    "message": "Request validation failed",
+    "details": {
+      "filters.durationRange": "minMinutes must be less than or equal to maxMinutes",
+      "filters.arrivalTimeRange.start": "start time must be in HH:MM format"
+    }
+  }
+}
+```
+
+**Common validation errors:**
+
+| Error | Cause | Solution |
+|-------|-------|----------|
+| `minMinutes must be less than or equal to maxMinutes` | Duration range invalid | Ensure min ≤ max |
+| `start time must be in HH:MM format` | Invalid time format | Use 24-hour format: "08:00" |
+| `start time must be before end time` | Time range invalid | Ensure start < end |
+| `invalid time value` | Hour/minute out of range | Hours: 00-23, Minutes: 00-59 |
+| `maxPrice must be positive` | Negative price | Use positive numbers only |
+| `maxStops must be non-negative` | Negative stops | Use 0 or positive integers |
+
+## Data Validation
+
+The system implements automatic data quality validation to ensure flight data integrity.
+
+### Flight Validation Rules
+
+Every flight is validated after normalization from provider data:
+
+1. **Time Consistency**
+   - Arrival time must be chronologically after departure time
+   - Violations are logged and the flight is excluded from results
+   - Error format: `invalid flight times: arrival time (TIME) must be after departure time (TIME)`
+
+2. **Required Fields**
+   - `FlightNumber` - Cannot be empty
+   - `Airline.Code` - Cannot be empty (IATA code)
+   - `Departure.AirportCode` - Cannot be empty (IATA code)
+   - `Arrival.AirportCode` - Cannot be empty (IATA code)
+   - Error format: `missing required field: FIELD_NAME`
+
+3. **Duration Mismatch (Warning Only)**
+   - Provider-reported duration may differ from calculated time difference
+   - Logged as warning but doesn't fail validation
+   - System uses calculated duration for ranking and filtering
+
+### Graceful Degradation
+
+The system handles invalid data gracefully:
+
+- **Invalid flights are automatically excluded** from search results
+- **Other valid flights** from the same provider are still returned
+- **Validation errors are logged** with provider and flight details for debugging
+- **Search continues** even if some providers return invalid data
+- **No user-facing errors** unless all providers fail completely
+
+### Validation in Action
+
+**Scenario:** Provider returns 10 flights, 2 have invalid times
+
+```
+Provider: garuda_indonesia
+Total flights from provider: 10
+Invalid flights detected: 2
+  - GA-123: arrival time (10:00) before departure time (15:00)
+  - GA-456: missing required field: Airline.Code
+Valid flights returned: 8
+```
+
+**Result:** User receives 8 valid flights, invalid flights are logged for monitoring
+
+## Troubleshooting
+
+### Common Issues and Solutions
+
+#### No Results Returned
+
+**Symptom:** Search returns `"total_results": 0` with empty flights array
+
+**Possible Causes:**
+1. **Filters too restrictive** - No flights match all criteria
+2. **Invalid date** - No flights available for that date in mock data
+3. **All providers failed** - Check `metadata.providers_failed` count
+
+**Solutions:**
+```bash
+# Check metadata for clues
+{
+  "metadata": {
+    "total_results": 0,
+    "providers_succeeded": 4,  # If >0, filters may be too strict
+    "providers_failed": 0
+  }
+}
+
+# Try removing filters one by one
+# Start with a basic search (no filters)
+# Add filters incrementally to identify which filter eliminates all results
+```
+
+#### Validation Errors
+
+**Symptom:** 400 Bad Request with validation details
+
+**Common errors:**
+
+1. **"origin is required"**
+   ```json
+   // Missing required field
+   {"destination": "DPS", ...}  // ❌ Missing origin
+   
+   // Solution: Add all required fields
+   {"origin": "CGK", "destination": "DPS", ...}  // ✓
+   ```
+
+2. **"invalid IATA airport code format"**
+   ```json
+   {"origin": "Jakarta", ...}  // ❌ Must be 3-letter code
+   {"origin": "cgk", ...}       // ❌ Must be uppercase
+   
+   {"origin": "CGK", ...}       // ✓ Correct
+   ```
+
+3. **"departureDate must be in YYYY-MM-DD format"**
+   ```json
+   {"departureDate": "12/15/2025"}  // ❌ Wrong format
+   {"departureDate": "2025-12-15"}  // ✓ Correct
+   ```
+
+4. **"minMinutes must be less than or equal to maxMinutes"**
+   ```json
+   {
+     "durationRange": {
+       "minMinutes": 180,
+       "maxMinutes": 60  // ❌ Min > Max
+     }
+   }
+   
+   // Solution: Fix the range
+   {
+     "durationRange": {
+       "minMinutes": 60,
+       "maxMinutes": 180  // ✓ Min ≤ Max
+     }
+   }
+   ```
+
+5. **"start time must be before end time"**
+   ```json
+   {
+     "departureTimeRange": {
+       "start": "18:00",
+       "end": "06:00"  // ❌ Overnight ranges not supported
+     }
+   }
+   
+   // Solution: Use same-day range
+   {
+     "departureTimeRange": {
+       "start": "06:00",
+       "end": "18:00"  // ✓
+     }
+   }
+   ```
+
+#### All Providers Failed (503 Error)
+
+**Symptom:** 503 Service Unavailable response
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "service_unavailable",
+    "message": "All flight providers are currently unavailable"
+  }
+}
+```
+
+**Possible Causes:**
+1. Mock data files not found or corrupted
+2. All providers timing out (check `TIMEOUT_PER_PROVIDER` setting)
+3. File permission issues
+
+**Solutions:**
+1. Verify mock data files exist in expected locations
+2. Check server logs for specific provider errors
+3. Increase timeout values in `.env` if providers are slow
+4. Ensure file paths are correct in provider configuration
+
+#### Slow Response Times
+
+**Symptom:** Search takes >2 seconds to complete
+
+**Diagnostics:**
+```json
+{
+  "metadata": {
+    "search_time_ms": 2500,  // > 2000ms is slow
+    "providers_succeeded": 3,
+    "providers_failed": 1     // Check which provider failed
+  }
+}
+```
+
+**Solutions:**
+1. Check `metadata.search_time_ms` to identify if it's a timeout issue
+2. Adjust `TIMEOUT_PER_PROVIDER` and `TIMEOUT_GLOBAL_SEARCH` in `.env`
+3. One slow/failing provider shouldn't delay others (scatter-gather pattern)
+4. Check server logs for timeout details
+
+#### Unexpected Filter Behavior
+
+**Issue:** Filters not working as expected
+
+**Debugging Steps:**
+
+1. **Test filters individually**
+   ```bash
+   # Test each filter separately to isolate the issue
+   # Start with no filters → add one filter → add another
+   ```
+
+2. **Check filter data types**
+   ```json
+   // Wrong: maxPrice as string
+   {"maxPrice": "1000000"}  // ❌
+   
+   // Correct: maxPrice as number
+   {"maxPrice": 1000000}    // ✓
+   ```
+
+3. **Verify time format**
+   ```json
+   // Wrong: 12-hour format
+   {"start": "6:00 AM"}     // ❌
+   
+   // Correct: 24-hour HH:MM
+   {"start": "06:00"}       // ✓
+   ```
+
+4. **Check array format**
+   ```json
+   // Wrong: airlines as string
+   {"airlines": "GA,JT"}    // ❌
+   
+   // Correct: airlines as array
+   {"airlines": ["GA", "JT"]}  // ✓
+   ```
+
+### Logging and Debugging
+
+**Enable debug logging:**
+```bash
+# Set in .env file
+LOG_LEVEL=debug
+LOG_FORMAT=console  # More readable than JSON for debugging
+```
+
+**Check logs for:**
+- Provider timeout errors
+- Validation failures with flight details
+- Filter application details
+- Response times per provider
+
+**Example debug log output:**
+```
+[DEBUG] Applying filters to 45 flights
+[WARN] [garuda_indonesia] Flight GA-123 validation failed: arrival time must be after departure time
+[INFO] Filters applied: 42 flights remaining
+[DEBUG] Ranking 42 flights by best value
+```
+
 ## Testing
 
 The project maintains comprehensive test coverage across all layers.
