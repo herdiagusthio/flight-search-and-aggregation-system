@@ -150,12 +150,13 @@ func setupRoutes(e *echo.Echo, cfg *config.Config) {
 	e.GET("/health", healthCheckHandler)
 
 	// Initialize providers with mock data paths
+	// Use WithSimulation to enable realistic API behavior with delays and failure rates
 	mockBasePath := "docs/response-mock"
 	providers := []domain.FlightProvider{
-		garuda.NewAdapter(mockBasePath + "/garuda_indonesia_search_response.json"),
-		lionair.NewAdapter(mockBasePath + "/lion_air_search_response.json"),
-		batikair.NewAdapter(mockBasePath + "/batik_air_search_response.json"),
-		airasia.NewAdapter(mockBasePath + "/airasia_search_response.json"),
+		garuda.NewAdapterWithSimulation(mockBasePath + "/garuda_indonesia_search_response.json"),   // 50-100ms delay
+		lionair.NewAdapterWithSimulation(mockBasePath + "/lion_air_search_response.json"),          // 100-200ms delay
+		batikair.NewAdapterWithSimulation(mockBasePath + "/batik_air_search_response.json"),        // 200-400ms delay
+		airasia.NewAdapterWithSimulation(mockBasePath + "/airasia_search_response.json"),           // 50-150ms delay, 10% failure rate
 	}
 
 	// Initialize use case with config
