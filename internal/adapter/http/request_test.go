@@ -21,17 +21,17 @@ func TestIsValidTimeFormat(t *testing.T) {
 		{name: "valid midnight", timeStr: "00:00", expected: true},
 		{name: "valid end of day", timeStr: "23:59", expected: true},
 		{name: "valid single digit minute", timeStr: "10:05", expected: true},
-		
+
 		// Invalid hours
 		{name: "hour too high", timeStr: "24:00", expected: false},
 		{name: "hour way too high", timeStr: "25:00", expected: false},
 		{name: "hour negative", timeStr: "-01:00", expected: false},
-		
+
 		// Invalid minutes
 		{name: "minute too high", timeStr: "12:60", expected: false},
 		{name: "minute way too high", timeStr: "12:99", expected: false},
 		{name: "minute negative", timeStr: "12:-01", expected: false},
-		
+
 		// Invalid formats
 		{name: "missing colon", timeStr: "1200", expected: false},
 		{name: "single digit hour", timeStr: "8:00", expected: false},
@@ -403,7 +403,7 @@ func TestValidationErrorsError(t *testing.T) {
 	require.NotEmpty(t, errorMsg)
 	// Error() returns the first error's message
 	assert.Equal(t, "error1", errorMsg)
-	
+
 	// Test empty errors
 	emptyErrs := &ValidationErrors{}
 	assert.Equal(t, "validation failed", emptyErrs.Error())

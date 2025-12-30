@@ -752,6 +752,46 @@ func TestToDomainFilters_Nil(t *testing.T) {
 	assert.Nil(t, filters)
 }
 
+func TestToDomainFilters_WithTimeRanges(t *testing.T) {
+	dto := &FilterDTO{
+		DepartureTimeRange: &TimeRangeDTO{
+			Start: "06:00",
+			End:   "12:00",
+		},
+		ArrivalTimeRange: &TimeRangeDTO{
+			Start: "08:00",
+			End:   "17:00",
+		},
+	}
+
+	filters := ToDomainFilters(dto)
+
+	require.NotNil(t, filters)
+	assert.NotNil(t, filters.DepartureTimeRange)
+	assert.NotNil(t, filters.ArrivalTimeRange)
+}
+
+func TestToDomainFilters_WithDurationRange(t *testing.T) {
+	minMinutes := 60
+	maxMinutes := 180
+	
+	dto := &FilterDTO{
+		DurationRange: &DurationRangeDTO{
+			MinMinutes: &minMinutes,
+			MaxMinutes: &maxMinutes,
+		},
+	}
+
+	filters := ToDomainFilters(dto)
+
+	require.NotNil(t, filters)
+	require.NotNil(t, filters.DurationRange)
+	require.NotNil(t, filters.DurationRange.MinMinutes)
+	require.NotNil(t, filters.DurationRange.MaxMinutes)
+	assert.Equal(t, 60, *filters.DurationRange.MinMinutes)
+	assert.Equal(t, 180, *filters.DurationRange.MaxMinutes)
+}
+
 func TestToDomainSortOption(t *testing.T) {
 	tests := []struct {
 		input    string
@@ -813,4 +853,54 @@ func floatPtr(f float64) *float64 {
 
 func intPtr(i int) *int {
 	return &i
+}
+
+// =====================================================
+// DTO Helper Function Tests
+// =====================================================
+
+func TestFormatBaggageKg(t *testing.T) {
+	tests := []struct {
+		name     string
+		kg       int
+		expected string
+	}{
+		{name: "zero baggage", kg: 0, expected: ""},
+		{name: "cabin only", kg: 7, expected: "Cabin baggage only"},
+		{name: "20kg baggage", kg: 20, expected: "20 kg"},
+		{name: "30kg baggage", kg: 30, expected: "30 kg"},
+		{name: "15kg baggage", kg: 15, expected: "15 kg"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := formatBaggageKg(tt.kg)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestExtractCityFromAirportName(t *testing.T) {
+	tests := []struct {
+		name     string
+		code     string
+		expected string
+	}{
+		{name: "Jakarta", code: "CGK", expected: "Jakarta"},
+		{name: "Denpasar", code: "DPS", expected: "Denpasar"},
+		{name: "Surabaya", code: "SUB", expected: "Surabaya"},
+		{name: "Yogyakarta", code: "JOG", expected: "Yogyakarta"},
+		{name: "Bandung", code: "BDO", expected: "Bandung"},
+		{name: "Manado", code: "MDC", expected: "Manado"},
+		{name: "Makassar", code: "UPG", expected: "Makassar"},
+		{name: "Balikpapan", code: "BPN", expected: "Balikpapan"},
+		{name: "unknown code", code: "XXX", expected: ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := extractCityFromAirportName(tt.code)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
 }
