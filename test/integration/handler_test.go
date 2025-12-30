@@ -626,3 +626,275 @@ func TestHandler_InvalidDurationRange(t *testing.T) {
 		})
 	}
 }
+
+// TestHandler_ArrivalTimeRangeFilter tests arrival time range filtering via HTTP.
+func TestHandler_ArrivalTimeRangeFilter(t *testing.T) {
+	// Arrange - Create flights with different arrival times
+	flights := []domain.Flight{
+		{
+			ID:           "morning",
+			FlightNumber: "GA 100",
+			Price:        domain.PriceInfo{Amount: 1000000, Currency: "IDR"},
+			Departure:    domain.FlightPoint{AirportCode: "CGK", DateTime: time.Date(2025, 12, 15, 6, 0, 0, 0, time.UTC)},
+			Arrival:      domain.FlightPoint{AirportCode: "DPS", DateTime: time.Date(2025, 12, 15, 8, 0, 0, 0, time.UTC)},
+			Provider:     "garuda",
+		},
+		{
+			ID:           "noon",
+			FlightNumber: "GA 101",
+			Price:        domain.PriceInfo{Amount: 1000000, Currency: "IDR"},
+			Departure:    domain.FlightPoint{AirportCode: "CGK", DateTime: time.Date(2025, 12, 15, 10, 0, 0, 0, time.UTC)},
+			Arrival:      domain.FlightPoint{AirportCode: "DPS", DateTime: time.Date(2025, 12, 15, 12, 0, 0, 0, time.UTC)},
+			Provider:     "garuda",
+		},
+		{
+			ID:           "afternoon",
+			FlightNumber: "GA 102",
+			Price:        domain.PriceInfo{Amount: 1000000, Currency: "IDR"},
+			Departure:    domain.FlightPoint{AirportCode: "CGK", DateTime: time.Date(2025, 12, 15, 13, 0, 0, 0, time.UTC)},
+			Arrival:      domain.FlightPoint{AirportCode: "DPS", DateTime: time.Date(2025, 12, 15, 15, 0, 0, 0, time.UTC)},
+			Provider:     "garuda",
+		},
+		{
+			ID:           "evening",
+			FlightNumber: "GA 103",
+			Price:        domain.PriceInfo{Amount: 1000000, Currency: "IDR"},
+			Departure:    domain.FlightPoint{AirportCode: "CGK", DateTime: time.Date(2025, 12, 15, 18, 0, 0, 0, time.UTC)},
+			Arrival:      domain.FlightPoint{AirportCode: "DPS", DateTime: time.Date(2025, 12, 15, 20, 0, 0, 0, time.UTC)},
+			Provider:     "garuda",
+		},
+	}
+
+	provider := mock.NewProvider("garuda").WithFlights(flights)
+	uc := CreateUseCase([]domain.FlightProvider{provider})
+	ts := NewTestServer(uc)
+
+	tests := []struct {
+		name        string
+		startTime   string
+		endTime     string
+		expectedIDs []string
+	}{
+		{
+			name:        "business hours arrivals",
+			startTime:   "08:00",
+			endTime:     "17:00",
+			expectedIDs: []string{"morning", "noon", "afternoon"},
+		},
+		{
+			name:        "morning only",
+			startTime:   "06:00",
+			endTime:     "10:00",
+			expectedIDs: []string{"morning"},
+		},
+		{
+			name:        "afternoon and evening",
+			startTime:   "14:00",
+			endTime:     "21:00",
+			expectedIDs: []string{"afternoon", "evening"},
+		},
+		{
+			name:        "narrow window",
+			startTime:   "11:00",
+			endTime:     "13:00",
+			expectedIDs: []string{"noon"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Request with arrival time filter
+			req := map[string]interface{}{
+				"origin":        "CGK",
+				"destination":   "DPS",
+				"departureDate": FutureDate(),
+				"passengers":    1,
+				"filters": map[string]interface{}{
+					"arrivalTimeRange": map[string]interface{}{
+						"start": tt.startTime,
+						"end":   tt.endTime,
+					},
+				},
+			}
+
+			// Act
+			resp := ts.SearchRequest(req)
+
+			// Assert
+			assert.Equal(t, http.StatusOK, resp.Code)
+
+			searchResp, err := resp.ParseSearchResponse()
+			require.NoError(t, err)
+			assert.Len(t, searchResp.Flights, len(tt.expectedIDs))
+
+			// Extract IDs
+			resultIDs := make([]string, len(searchResp.Flights))
+			for i, f := range searchResp.Flights {
+				resultIDs[i] = f.ID
+			}
+
+			assert.ElementsMatch(t, tt.expectedIDs, resultIDs)
+		})
+	}
+}
+
+// TestHandler_DepartureAndArrivalTimeRange tests combining both time filters.
+func TestHandler_DepartureAndArrivalTimeRange(t *testing.T) {
+	// Arrange - Create flights with various departure and arrival times
+	flights := []domain.Flight{
+		{
+			ID:           "early-bird",
+			FlightNumber: "GA 100",
+			Price:        domain.PriceInfo{Amount: 800000, Currency: "IDR"},
+			Departure:    domain.FlightPoint{AirportCode: "CGK", DateTime: time.Date(2025, 12, 15, 6, 0, 0, 0, time.UTC)},
+			Arrival:      domain.FlightPoint{AirportCode: "DPS", DateTime: time.Date(2025, 12, 15, 8, 30, 0, 0, time.UTC)},
+			Provider:     "garuda",
+		},
+		{
+			ID:           "business-class",
+			FlightNumber: "GA 101",
+			Price:        domain.PriceInfo{Amount: 1200000, Currency: "IDR"},
+			Departure:    domain.FlightPoint{AirportCode: "CGK", DateTime: time.Date(2025, 12, 15, 9, 0, 0, 0, time.UTC)},
+			Arrival:      domain.FlightPoint{AirportCode: "DPS", DateTime: time.Date(2025, 12, 15, 11, 30, 0, 0, time.UTC)},
+			Provider:     "garuda",
+		},
+		{
+			ID:           "afternoon-delight",
+			FlightNumber: "GA 102",
+			Price:        domain.PriceInfo{Amount: 900000, Currency: "IDR"},
+			Departure:    domain.FlightPoint{AirportCode: "CGK", DateTime: time.Date(2025, 12, 15, 14, 0, 0, 0, time.UTC)},
+			Arrival:      domain.FlightPoint{AirportCode: "DPS", DateTime: time.Date(2025, 12, 15, 16, 30, 0, 0, time.UTC)},
+			Provider:     "garuda",
+		},
+		{
+			ID:           "late-night",
+			FlightNumber: "GA 103",
+			Price:        domain.PriceInfo{Amount: 700000, Currency: "IDR"},
+			Departure:    domain.FlightPoint{AirportCode: "CGK", DateTime: time.Date(2025, 12, 15, 20, 0, 0, 0, time.UTC)},
+			Arrival:      domain.FlightPoint{AirportCode: "DPS", DateTime: time.Date(2025, 12, 15, 22, 30, 0, 0, time.UTC)},
+			Provider:     "garuda",
+		},
+	}
+
+	provider := mock.NewProvider("garuda").WithFlights(flights)
+	uc := CreateUseCase([]domain.FlightProvider{provider})
+	ts := NewTestServer(uc)
+
+	t.Run("morning departure and business hours arrival", func(t *testing.T) {
+		req := map[string]interface{}{
+			"origin":        "CGK",
+			"destination":   "DPS",
+			"departureDate": FutureDate(),
+			"passengers":    1,
+			"filters": map[string]interface{}{
+				"departureTimeRange": map[string]interface{}{
+					"start": "06:00",
+					"end":   "12:00",
+				},
+				"arrivalTimeRange": map[string]interface{}{
+					"start": "08:00",
+					"end":   "17:00",
+				},
+			},
+		}
+
+		resp := ts.SearchRequest(req)
+		assert.Equal(t, http.StatusOK, resp.Code)
+
+		searchResp, err := resp.ParseSearchResponse()
+		require.NoError(t, err)
+		assert.Len(t, searchResp.Flights, 2)
+
+		resultIDs := make([]string, len(searchResp.Flights))
+		for i, f := range searchResp.Flights {
+			resultIDs[i] = f.ID
+		}
+		assert.ElementsMatch(t, []string{"early-bird", "business-class"}, resultIDs)
+	})
+
+	t.Run("afternoon departure and arrival", func(t *testing.T) {
+		req := map[string]interface{}{
+			"origin":        "CGK",
+			"destination":   "DPS",
+			"departureDate": FutureDate(),
+			"passengers":    1,
+			"filters": map[string]interface{}{
+				"departureTimeRange": map[string]interface{}{
+					"start": "12:00",
+					"end":   "18:00",
+				},
+				"arrivalTimeRange": map[string]interface{}{
+					"start": "14:00",
+					"end":   "19:00",
+				},
+			},
+		}
+
+		resp := ts.SearchRequest(req)
+		assert.Equal(t, http.StatusOK, resp.Code)
+
+		searchResp, err := resp.ParseSearchResponse()
+		require.NoError(t, err)
+		assert.Len(t, searchResp.Flights, 1)
+		assert.Equal(t, "afternoon-delight", searchResp.Flights[0].ID)
+	})
+}
+
+// TestHandler_InvalidArrivalTimeRange tests validation of invalid arrival time ranges.
+func TestHandler_InvalidArrivalTimeRange(t *testing.T) {
+	provider := mock.NewProvider("garuda").WithFlights(mock.SampleFlights("garuda", 3))
+	uc := CreateUseCase([]domain.FlightProvider{provider})
+	ts := NewTestServer(uc)
+
+	tests := []struct {
+		name       string
+		timeFilter map[string]interface{}
+	}{
+		{
+			name: "invalid start time format",
+			timeFilter: map[string]interface{}{
+				"start": "25:00",
+				"end":   "12:00",
+			},
+		},
+		{
+			name: "invalid end time format",
+			timeFilter: map[string]interface{}{
+				"start": "08:00",
+				"end":   "12:99",
+			},
+		},
+		{
+			name: "missing start time",
+			timeFilter: map[string]interface{}{
+				"end": "12:00",
+			},
+		},
+		{
+			name: "missing end time",
+			timeFilter: map[string]interface{}{
+				"start": "08:00",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := map[string]interface{}{
+				"origin":        "CGK",
+				"destination":   "DPS",
+				"departureDate": FutureDate(),
+				"passengers":    1,
+				"filters": map[string]interface{}{
+					"arrivalTimeRange": tt.timeFilter,
+				},
+			}
+
+			// Act
+			resp := ts.SearchRequest(req)
+
+			// Assert - Should return 400 Bad Request
+			assert.Equal(t, http.StatusBadRequest, resp.Code)
+		})
+	}
+}

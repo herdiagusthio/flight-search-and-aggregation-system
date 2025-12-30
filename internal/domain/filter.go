@@ -49,6 +49,9 @@ type FilterOptions struct {
 	// DepartureTimeRange filters flights departing within this time range
 	DepartureTimeRange *TimeRange `json:"departureTimeRange,omitempty"`
 
+	// ArrivalTimeRange filters flights arriving within this time range
+	ArrivalTimeRange *TimeRange `json:"arrivalTimeRange,omitempty"`
+
 	// DurationRange filters flights by total duration in minutes
 	DurationRange *DurationRange `json:"durationRange,omitempty"`
 }
@@ -166,11 +169,16 @@ func (f *FilterOptions) MatchesFlight(flight Flight) bool {
 
 	// Check departure time range filter
 	if f.DepartureTimeRange != nil && !f.DepartureTimeRange.Contains(flight.Departure.DateTime) {
-	// Check duration range filter
-	if f.DurationRange != nil && !f.DurationRange.Contains(flight.Duration.TotalMinutes) {
 		return false
 	}
 
+	// Check arrival time range filter
+	if f.ArrivalTimeRange != nil && !f.ArrivalTimeRange.Contains(flight.Arrival.DateTime) {
+		return false
+	}
+
+	// Check duration range filter
+	if f.DurationRange != nil && !f.DurationRange.Contains(flight.Duration.TotalMinutes) {
 		return false
 	}
 

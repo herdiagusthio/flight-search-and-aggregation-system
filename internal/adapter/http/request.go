@@ -34,7 +34,7 @@ type SearchFlightsRequest struct {
 }
 
 // FilterDTO represents optional filters for flight search.
-// Example: {"maxPrice": 1000000, "maxStops": 0, "durationRange": {"maxMinutes": 180}}
+// Example: {"maxPrice": 1000000, "maxStops": 0, "departureTimeRange": {"start": "06:00", "end": "12:00"}, "arrivalTimeRange": {"start": "08:00", "end": "17:00"}}
 type FilterDTO struct {
 	// MaxPrice filters flights with price above this amount
 	MaxPrice *float64 `json:"maxPrice,omitempty" example:"1000000"`
@@ -47,6 +47,9 @@ type FilterDTO struct {
 
 	// DepartureTimeRange filters flights departing within a time window
 	DepartureTimeRange *TimeRangeDTO `json:"departureTimeRange,omitempty"`
+
+	// ArrivalTimeRange filters flights arriving within a time window
+	ArrivalTimeRange *TimeRangeDTO `json:"arrivalTimeRange,omitempty"`
 
 	// DurationRange filters flights by total duration in minutes
 	DurationRange *DurationRangeDTO `json:"durationRange,omitempty"`
@@ -274,7 +277,12 @@ func (r *SearchFlightsRequest) validateFilters(errs *ValidationErrors) {
 
 	// Validate departure time range
 	if r.Filters.DepartureTimeRange != nil {
-		r.validateTimeRange(errs)
+		r.validateDepartureTimeRange(errs)
+	}
+
+	// Validate arrival time range
+	if r.Filters.ArrivalTimeRange != nil {
+		r.validateArrivalTimeRange(errs)
 	}
 
 	// Validate duration range
@@ -283,19 +291,35 @@ func (r *SearchFlightsRequest) validateFilters(errs *ValidationErrors) {
 	}
 }
 
-func (r *SearchFlightsRequest) validateTimeRange(errs *ValidationErrors) {
+func (r *SearchFlightsRequest) validateDepartureTimeRange(errs *ValidationErrors) {
 	tr := r.Filters.DepartureTimeRange
 
 	if tr.Start == "" {
 		errs.Add("filters.departureTimeRange.start", "start time is required when departureTimeRange is specified")
-	} else if !timePattern.MatchString(tr.Start) {
-		errs.Add("filters.departureTimeRange.start", "start must be in HH:MM format")
+	} else if !isValidTimeFormat(tr.Start) {
+		errs.Add("filters.departureTimeRange.start", "start must be in HH:MM format with valid hours (00-23) and minutes (00-59)")
 	}
 
 	if tr.End == "" {
 		errs.Add("filters.departureTimeRange.end", "end time is required when departureTimeRange is specified")
-	} else if !timePattern.MatchString(tr.End) {
-		errs.Add("filters.departureTimeRange.end", "end must be in HH:MM format")
+	} else if !isValidTimeFormat(tr.End) {
+		errs.Add("filters.departureTimeRange.end", "end must be in HH:MM format with valid hours (00-23) and minutes (00-59)")
+	}
+}
+
+func (r *SearchFlightsRequest) validateArrivalTimeRange(errs *ValidationErrors) {
+	tr := r.Filters.ArrivalTimeRange
+
+	if tr.Start == "" {
+		errs.Add("filters.arrivalTimeRange.start", "start time is required when arrivalTimeRange is specified")
+	} else if !isValidTimeFormat(tr.Start) {
+		errs.Add("filters.arrivalTimeRange.start", "start must be in HH:MM format with valid hours (00-23) and minutes (00-59)")
+	}
+
+	if tr.End == "" {
+		errs.Add("filters.arrivalTimeRange.end", "end time is required when arrivalTimeRange is specified")
+	} else if !isValidTimeFormat(tr.End) {
+		errs.Add("filters.arrivalTimeRange.end", "end must be in HH:MM format with valid hours (00-23) and minutes (00-59)")
 	}
 }
 
@@ -322,4 +346,30 @@ func (r *SearchFlightsRequest) validateDurationRange(errs *ValidationErrors) {
 			errs.Add("filters.durationRange", "minMinutes must be less than or equal to maxMinutes")
 		}
 	}
+}
+
+// isValidTimeFormat validates that a time string is in HH:MM format with valid values.
+// Hours must be 00-23, minutes must be 00-59.
+func isValidTimeFormat(timeStr string) bool {
+	// Check basic format
+	if !timePattern.MatchString(timeStr) {
+		return false
+	}
+
+	// Parse and validate hour and minute values
+	var hour, minute int
+	_, err := fmt.Sscanf(timeStr, "%02d:%02d", &hour, &minute)
+	if err != nil {
+		return false
+	}
+
+	// Validate ranges
+	if hour < 0 || hour > 23 {
+		return false
+	}
+	if minute < 0 || minute > 59 {
+		return false
+	}
+
+	return true
 }

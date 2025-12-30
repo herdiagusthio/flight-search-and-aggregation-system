@@ -191,6 +191,7 @@ Content-Type: application/json
 | `maxStops` | integer | Maximum number of stops (0 = direct only) |
 | `airlines` | array | List of airline codes to include (e.g., ["GA", "JT"]) |
 | `departureTimeRange` | object | Time range filter with `start` and `end` (HH:MM format) |
+| `arrivalTimeRange` | object | Time range filter with `start` and `end` (HH:MM format) |
 | `durationRange` | object | Duration range filter with `minMinutes` and/or `maxMinutes` |
 
 #### Sort Options
@@ -307,6 +308,48 @@ curl -X POST http://localhost:8080/api/v1/flights/search \
       "departureTimeRange": {
         "start": "06:00",
         "end": "12:00"
+      }
+    },
+    "sortBy": "price"
+  }'
+```
+
+```bash
+# Business hours arrival - flights arriving between 8 AM and 5 PM
+curl -X POST http://localhost:8080/api/v1/flights/search \
+  -H "Content-Type: application/json" \
+  -d '{
+    "origin": "CGK",
+    "destination": "DPS",
+    "departureDate": "2025-12-15",
+    "passengers": 1,
+    "filters": {
+      "arrivalTimeRange": {
+        "start": "08:00",
+        "end": "17:00"
+      }
+    },
+    "sortBy": "departure"
+  }'
+```
+
+```bash
+# Morning departure with business hours arrival
+curl -X POST http://localhost:8080/api/v1/flights/search \
+  -H "Content-Type: application/json" \
+  -d '{
+    "origin": "CGK",
+    "destination": "DPS",
+    "departureDate": "2025-12-15",
+    "passengers": 1,
+    "filters": {
+      "departureTimeRange": {
+        "start": "06:00",
+        "end": "12:00"
+      },
+      "arrivalTimeRange": {
+        "start": "08:00",
+        "end": "17:00"
       }
     },
     "sortBy": "price"

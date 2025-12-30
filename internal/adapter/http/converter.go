@@ -47,6 +47,11 @@ func ToDomainFilters(dto *FilterDTO) *domain.FilterOptions {
 		opts.DepartureTimeRange = toDomainTimeRange(dto.DepartureTimeRange)
 	}
 
+	// Convert arrival time range if provided
+	if dto.ArrivalTimeRange != nil {
+		opts.ArrivalTimeRange = toDomainTimeRange(dto.ArrivalTimeRange)
+	}
+
 	// Convert duration range if provided
 	if dto.DurationRange != nil {
 		opts.DurationRange = toDomainDurationRange(dto.DurationRange)

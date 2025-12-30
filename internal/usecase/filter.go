@@ -68,6 +68,11 @@ func passesAllFilters(f domain.Flight, opts *domain.FilterOptions, airlineSet ma
 		return false
 	}
 
+	// Arrival time range filter: include flights arriving within the range
+	if opts.ArrivalTimeRange != nil && !opts.ArrivalTimeRange.Contains(f.Arrival.DateTime) {
+		return false
+	}
+
 	// Duration range filter: include flights with duration within the range
 	if opts.DurationRange != nil && !opts.DurationRange.Contains(f.Duration.TotalMinutes) {
 		return false
@@ -156,6 +161,22 @@ func FilterByDepartureTime(flights []domain.Flight, timeRange *domain.TimeRange)
 	result := make([]domain.Flight, 0, len(flights))
 	for _, f := range flights {
 		if timeRange.Contains(f.Departure.DateTime) {
+			result = append(result, f)
+		}
+	}
+	return result
+}
+
+// FilterByArrivalTime filters flights by arrival time range.
+// Returns all flights if timeRange is nil.
+func FilterByArrivalTime(flights []domain.Flight, timeRange *domain.TimeRange) []domain.Flight {
+	if timeRange == nil {
+		return flights
+	}
+
+	result := make([]domain.Flight, 0, len(flights))
+	for _, f := range flights {
+		if timeRange.Contains(f.Arrival.DateTime) {
 			result = append(result, f)
 		}
 	}

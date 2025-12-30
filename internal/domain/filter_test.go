@@ -229,8 +229,103 @@ func TestFilterOptions_MatchesFlight(t *testing.T) {
 			filter: &FilterOptions{Airlines: []string{"Ga", "jT"}},
 			flight: baseFlight,
 			want: true,
+		},		{
+			name: "arrival time filter passes when in range",
+			filter: &FilterOptions{
+				ArrivalTimeRange: &TimeRange{
+					Start: time.Date(2025, 1, 1, 10, 0, 0, 0, time.UTC),
+					End:   time.Date(2025, 1, 1, 14, 0, 0, 0, time.UTC),
+				},
+			},
+			flight: Flight{
+				ID:           "test-arrival",
+				FlightNumber: "GA-124",
+				Airline:      AirlineInfo{Code: "GA", Name: "Garuda Indonesia"},
+				Price:        PriceInfo{Amount: 1500000, Currency: "IDR"},
+				Stops:        0,
+				Departure:    FlightPoint{AirportCode: "CGK", DateTime: time.Date(2025, 6, 15, 8, 0, 0, 0, time.UTC)},
+				Arrival:      FlightPoint{AirportCode: "DPS", DateTime: time.Date(2025, 6, 15, 12, 0, 0, 0, time.UTC)},
+			},
+			want: true,
 		},
-	}
+		{
+			name: "arrival time filter fails when out of range",
+			filter: &FilterOptions{
+				ArrivalTimeRange: &TimeRange{
+					Start: time.Date(2025, 1, 1, 16, 0, 0, 0, time.UTC),
+					End:   time.Date(2025, 1, 1, 20, 0, 0, 0, time.UTC),
+				},
+			},
+			flight: Flight{
+				ID:           "test-arrival-2",
+				FlightNumber: "GA-125",
+				Airline:      AirlineInfo{Code: "GA", Name: "Garuda Indonesia"},
+				Price:        PriceInfo{Amount: 1500000, Currency: "IDR"},
+				Stops:        0,
+				Departure:    FlightPoint{AirportCode: "CGK", DateTime: time.Date(2025, 6, 15, 8, 0, 0, 0, time.UTC)},
+				Arrival:      FlightPoint{AirportCode: "DPS", DateTime: time.Date(2025, 6, 15, 12, 0, 0, 0, time.UTC)},
+			},
+			want: false,
+		},
+		{
+			name: "duration range filter passes when in range",
+			filter: &FilterOptions{
+				DurationRange: &DurationRange{
+					MinMinutes: intPtr(60),
+					MaxMinutes: intPtr(180),
+				},
+			},
+			flight: Flight{
+				ID:           "test-duration",
+				FlightNumber: "GA-126",
+				Airline:      AirlineInfo{Code: "GA", Name: "Garuda Indonesia"},
+				Price:        PriceInfo{Amount: 1500000, Currency: "IDR"},
+				Duration:     DurationInfo{TotalMinutes: 120},
+				Stops:        0,
+			},
+			want: true,
+		},
+		{
+			name: "duration range filter fails when out of range",
+			filter: &FilterOptions{
+				DurationRange: &DurationRange{
+					MinMinutes: intPtr(60),
+					MaxMinutes: intPtr(100),
+				},
+			},
+			flight: Flight{
+				ID:           "test-duration-2",
+				FlightNumber: "GA-127",
+				Airline:      AirlineInfo{Code: "GA", Name: "Garuda Indonesia"},
+				Price:        PriceInfo{Amount: 1500000, Currency: "IDR"},
+				Duration:     DurationInfo{TotalMinutes: 120},
+				Stops:        0,
+			},
+			want: false,
+		},
+		{
+			name: "combined departure and arrival time filters both pass",
+			filter: &FilterOptions{
+				DepartureTimeRange: &TimeRange{
+					Start: time.Date(2025, 1, 1, 8, 0, 0, 0, time.UTC),
+					End:   time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC),
+				},
+				ArrivalTimeRange: &TimeRange{
+					Start: time.Date(2025, 1, 1, 10, 0, 0, 0, time.UTC),
+					End:   time.Date(2025, 1, 1, 14, 0, 0, 0, time.UTC),
+				},
+			},
+			flight: Flight{
+				ID:           "test-combined-times",
+				FlightNumber: "GA-128",
+				Airline:      AirlineInfo{Code: "GA", Name: "Garuda Indonesia"},
+				Price:        PriceInfo{Amount: 1500000, Currency: "IDR"},
+				Stops:        0,
+				Departure:    FlightPoint{AirportCode: "CGK", DateTime: time.Date(2025, 6, 15, 10, 0, 0, 0, time.UTC)},
+				Arrival:      FlightPoint{AirportCode: "DPS", DateTime: time.Date(2025, 6, 15, 12, 0, 0, 0, time.UTC)},
+			},
+			want: true,
+		},	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

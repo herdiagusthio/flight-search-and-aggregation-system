@@ -24,7 +24,7 @@ const docTemplate = `{
     "paths": {
         "/flights/search": {
             "post": {
-                "description": "Search for available flights across multiple airline providers (Garuda, Lion Air, Batik Air, AirAsia). Supports filtering by price, stops, airlines, departure time, and flight duration.",
+                "description": "Search for available flights across multiple airline providers (Garuda, Lion Air, Batik Air, AirAsia). Supports filtering by price, stops, airlines, departure time, arrival time, and flight duration.",
                 "consumes": [
                     "application/json"
                 ],
@@ -37,7 +37,7 @@ const docTemplate = `{
                 "summary": "Search for flights",
                 "parameters": [
                     {
-                        "description": "Search criteria with optional filters (maxPrice, maxStops, airlines, departureTimeRange, durationRange)",
+                        "description": "Search criteria with optional filters (maxPrice, maxStops, airlines, departureTimeRange, arrivalTimeRange, durationRange)",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -103,6 +103,14 @@ const docTemplate = `{
                     "example": [
                         "GA",
                         "JT"
+                    ]
+                },
+                "arrivalTimeRange": {
+                    "description": "ArrivalTimeRange filters flights arriving within a time window",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/internal_adapter_http.TimeRangeDTO"
+                        }
                     ]
                 },
                 "departureTimeRange": {

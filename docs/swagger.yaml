@@ -25,6 +25,10 @@ definitions:
         items:
           type: string
         type: array
+      arrivalTimeRange:
+        allOf:
+        - $ref: '#/definitions/internal_adapter_http.TimeRangeDTO'
+        description: ArrivalTimeRange filters flights arriving within a time window
       departureTimeRange:
         allOf:
         - $ref: '#/definitions/internal_adapter_http.TimeRangeDTO'
@@ -306,10 +310,10 @@ paths:
       - application/json
       description: Search for available flights across multiple airline providers
         (Garuda, Lion Air, Batik Air, AirAsia). Supports filtering by price, stops,
-        airlines, departure time, and flight duration.
+        airlines, departure time, arrival time, and flight duration.
       parameters:
       - description: Search criteria with optional filters (maxPrice, maxStops, airlines,
-          departureTimeRange, durationRange)
+          departureTimeRange, arrivalTimeRange, durationRange)
         in: body
         name: request
         required: true

@@ -44,6 +44,41 @@ func createFilterTestFlight(id string, price float64, stops int, airlineCode str
 	}
 }
 
+// createFlightWithArrival creates a flight with a specific arrival time for testing.
+func createFlightWithArrival(id string, price float64, stops int, airlineCode string, arrivalHour int) domain.Flight {
+	return domain.Flight{
+		ID:           id,
+		FlightNumber: "FL-" + id,
+		Airline: domain.AirlineInfo{
+			Code: airlineCode,
+			Name: "Test Airline",
+		},
+		Departure: domain.FlightPoint{
+			AirportCode: "CGK",
+			DateTime:    time.Date(2025, 12, 15, arrivalHour-2, 0, 0, 0, time.UTC),
+		},
+		Arrival: domain.FlightPoint{
+			AirportCode: "DPS",
+			DateTime:    time.Date(2025, 12, 15, arrivalHour, 0, 0, 0, time.UTC),
+		},
+		Duration: domain.DurationInfo{
+			TotalMinutes: 120,
+			Formatted:    "2h 0m",
+		},
+		Price: domain.PriceInfo{
+			Amount:   price,
+			Currency: "IDR",
+		},
+		Baggage: domain.BaggageInfo{
+			CabinKg:   7,
+			CheckedKg: 20,
+		},
+		Class:    "economy",
+		Stops:    stops,
+		Provider: "test",
+	}
+}
+
 // Helper functions for creating pointer values
 func floatPtr(f float64) *float64 { return &f }
 func intPtr(i int) *int           { return &i }
@@ -335,6 +370,137 @@ func TestApplyFilters_CombinedFilters(t *testing.T) {
 	assert.Equal(t, "6", result[1].ID)
 }
 
+// TestApplyFilters_ArrivalTimeRange tests arrival time range filtering.
+func TestApplyFilters_ArrivalTimeRange(t *testing.T) {
+	// Create flights with varying arrival times
+	flights := []domain.Flight{
+		createFlightWithArrival("morning", 1000000, 0, "GA", 8),  // Arrives 8:00
+		createFlightWithArrival("noon", 900000, 0, "JT", 12),      // Arrives 12:00
+		createFlightWithArrival("afternoon", 800000, 0, "ID", 16), // Arrives 16:00
+		createFlightWithArrival("evening", 700000, 0, "AK", 20),   // Arrives 20:00
+	}
+
+	tests := []struct {
+		name        string
+		startHour   int
+		endHour     int
+		expectedIDs []string
+	}{
+		{"business hours arrivals", 8, 17, []string{"morning", "noon", "afternoon"}},
+		{"afternoon only", 14, 18, []string{"afternoon"}},
+		{"evening arrivals", 18, 23, []string{"evening"}},
+		{"early arrivals", 6, 10, []string{"morning"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			opts := &domain.FilterOptions{
+				ArrivalTimeRange: &domain.TimeRange{
+					Start: time.Date(2025, 1, 1, tt.startHour, 0, 0, 0, time.UTC),
+					End:   time.Date(2025, 1, 1, tt.endHour, 0, 0, 0, time.UTC),
+				},
+			}
+
+			result := ApplyFilters(flights, opts)
+			require.Len(t, result, len(tt.expectedIDs))
+
+			resultIDs := make([]string, len(result))
+			for i, f := range result {
+				resultIDs[i] = f.ID
+			}
+			assert.ElementsMatch(t, tt.expectedIDs, resultIDs)
+		})
+	}
+}
+
+// TestApplyFilters_DepartureAndArrivalTimeRange tests combined departure and arrival time filtering.
+func TestApplyFilters_DepartureAndArrivalTimeRange(t *testing.T) {
+	// Create flights with specific departure and arrival times
+	// Flight departs at departHour and arrives 2 hours later
+	flights := []domain.Flight{
+		{
+			ID:           "early-morning",
+			FlightNumber: "FL-001",
+			Airline:      domain.AirlineInfo{Code: "GA", Name: "Garuda"},
+			Departure:    domain.FlightPoint{AirportCode: "CGK", DateTime: time.Date(2025, 12, 15, 6, 0, 0, 0, time.UTC)},
+			Arrival:      domain.FlightPoint{AirportCode: "DPS", DateTime: time.Date(2025, 12, 15, 8, 0, 0, 0, time.UTC)},
+			Duration:     domain.DurationInfo{TotalMinutes: 120},
+			Price:        domain.PriceInfo{Amount: 800000, Currency: "IDR"},
+			Stops:        0,
+		},
+		{
+			ID:           "morning-arrival",
+			FlightNumber: "FL-002",
+			Airline:      domain.AirlineInfo{Code: "JT", Name: "Lion"},
+			Departure:    domain.FlightPoint{AirportCode: "CGK", DateTime: time.Date(2025, 12, 15, 8, 0, 0, 0, time.UTC)},
+			Arrival:      domain.FlightPoint{AirportCode: "DPS", DateTime: time.Date(2025, 12, 15, 10, 0, 0, 0, time.UTC)},
+			Duration:     domain.DurationInfo{TotalMinutes: 120},
+			Price:        domain.PriceInfo{Amount: 750000, Currency: "IDR"},
+			Stops:        0,
+		},
+		{
+			ID:           "afternoon",
+			FlightNumber: "FL-003",
+			Airline:      domain.AirlineInfo{Code: "ID", Name: "Batik"},
+			Departure:    domain.FlightPoint{AirportCode: "CGK", DateTime: time.Date(2025, 12, 15, 10, 0, 0, 0, time.UTC)},
+			Arrival:      domain.FlightPoint{AirportCode: "DPS", DateTime: time.Date(2025, 12, 15, 12, 0, 0, 0, time.UTC)},
+			Duration:     domain.DurationInfo{TotalMinutes: 120},
+			Price:        domain.PriceInfo{Amount: 900000, Currency: "IDR"},
+			Stops:        0,
+		},
+		{
+			ID:           "evening",
+			FlightNumber: "FL-004",
+			Airline:      domain.AirlineInfo{Code: "AK", Name: "AirAsia"},
+			Departure:    domain.FlightPoint{AirportCode: "CGK", DateTime: time.Date(2025, 12, 15, 16, 0, 0, 0, time.UTC)},
+			Arrival:      domain.FlightPoint{AirportCode: "DPS", DateTime: time.Date(2025, 12, 15, 18, 0, 0, 0, time.UTC)},
+			Duration:     domain.DurationInfo{TotalMinutes: 120},
+			Price:        domain.PriceInfo{Amount: 850000, Currency: "IDR"},
+			Stops:        0,
+		},
+	}
+
+	t.Run("morning departure with business hours arrival", func(t *testing.T) {
+		opts := &domain.FilterOptions{
+			DepartureTimeRange: &domain.TimeRange{
+				Start: time.Date(2025, 1, 1, 6, 0, 0, 0, time.UTC),
+				End:   time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC),
+			},
+			ArrivalTimeRange: &domain.TimeRange{
+				Start: time.Date(2025, 1, 1, 8, 0, 0, 0, time.UTC),
+				End:   time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC),
+			},
+		}
+
+		result := ApplyFilters(flights, opts)
+		require.Len(t, result, 3)
+		
+		resultIDs := make([]string, len(result))
+		for i, f := range result {
+			resultIDs[i] = f.ID
+		}
+		assert.ElementsMatch(t, []string{"early-morning", "morning-arrival", "afternoon"}, resultIDs)
+	})
+
+	t.Run("strict business hours both ways", func(t *testing.T) {
+		opts := &domain.FilterOptions{
+			DepartureTimeRange: &domain.TimeRange{
+				Start: time.Date(2025, 1, 1, 8, 0, 0, 0, time.UTC),
+				End:   time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC),
+			},
+			ArrivalTimeRange: &domain.TimeRange{
+				Start: time.Date(2025, 1, 1, 10, 0, 0, 0, time.UTC),
+				End:   time.Date(2025, 1, 1, 14, 0, 0, 0, time.UTC),
+			},
+		}
+
+		result := ApplyFilters(flights, opts)
+		require.Len(t, result, 2)
+		assert.ElementsMatch(t, []string{"morning-arrival", "afternoon"}, 
+			[]string{result[0].ID, result[1].ID})
+	})
+}
+
 // TestApplyFilters_AllFiltersOneMatch tests combined filters with single match.
 func TestApplyFilters_AllFiltersOneMatch(t *testing.T) {
 	flights := []domain.Flight{
@@ -450,6 +616,62 @@ func TestFilterByDepartureTime(t *testing.T) {
 		result := FilterByDepartureTime(flights, timeRange)
 		require.Len(t, result, 1)
 		assert.Equal(t, 12, result[0].Departure.DateTime.Hour())
+	})
+}
+
+// TestFilterByArrivalTime tests the individual arrival time filter function.
+func TestFilterByArrivalTime(t *testing.T) {
+	// Create flights with different arrival times
+	flights := []domain.Flight{
+		createFlightWithArrival("1", 1000000, 0, "GA", 10), // Arrives at 10:00
+		createFlightWithArrival("2", 1000000, 0, "JT", 14), // Arrives at 14:00
+		createFlightWithArrival("3", 1000000, 0, "ID", 20), // Arrives at 20:00
+	}
+
+	t.Run("nil timeRange returns all", func(t *testing.T) {
+		result := FilterByArrivalTime(flights, nil)
+		assert.Len(t, result, 3)
+	})
+
+	t.Run("filters by arrival time range", func(t *testing.T) {
+		timeRange := &domain.TimeRange{
+			Start: time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC),
+			End:   time.Date(2025, 1, 1, 16, 0, 0, 0, time.UTC),
+		}
+		result := FilterByArrivalTime(flights, timeRange)
+		require.Len(t, result, 1)
+		assert.Equal(t, "2", result[0].ID)
+		assert.Equal(t, 14, result[0].Arrival.DateTime.Hour())
+	})
+
+	t.Run("filters early morning arrivals", func(t *testing.T) {
+		timeRange := &domain.TimeRange{
+			Start: time.Date(2025, 1, 1, 8, 0, 0, 0, time.UTC),
+			End:   time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC),
+		}
+		result := FilterByArrivalTime(flights, timeRange)
+		require.Len(t, result, 1)
+		assert.Equal(t, "1", result[0].ID)
+	})
+
+	t.Run("filters evening arrivals", func(t *testing.T) {
+		timeRange := &domain.TimeRange{
+			Start: time.Date(2025, 1, 1, 18, 0, 0, 0, time.UTC),
+			End:   time.Date(2025, 1, 1, 23, 0, 0, 0, time.UTC),
+		}
+		result := FilterByArrivalTime(flights, timeRange)
+		require.Len(t, result, 1)
+		assert.Equal(t, "3", result[0].ID)
+		assert.Equal(t, 20, result[0].Arrival.DateTime.Hour())
+	})
+
+	t.Run("no matches outside range", func(t *testing.T) {
+		timeRange := &domain.TimeRange{
+			Start: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
+			End:   time.Date(2025, 1, 1, 6, 0, 0, 0, time.UTC),
+		}
+		result := FilterByArrivalTime(flights, timeRange)
+		assert.Len(t, result, 0)
 	})
 }
 

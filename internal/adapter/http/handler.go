@@ -28,11 +28,11 @@ func NewFlightHandler(uc usecase.FlightSearchUseCase) *FlightHandler {
 // SearchFlights handles POST /api/v1/flights/search
 //
 //	@Summary		Search for flights
-//	@Description	Search for available flights across multiple airline providers (Garuda, Lion Air, Batik Air, AirAsia). Supports filtering by price, stops, airlines, departure time, and flight duration.
+//	@Description	Search for available flights across multiple airline providers (Garuda, Lion Air, Batik Air, AirAsia). Supports filtering by price, stops, airlines, departure time, arrival time, and flight duration.
 //	@Tags			flights
 //	@Accept			json
 //	@Produce		json
-//	@Param			request	body		SearchFlightsRequest	true	"Search criteria with optional filters (maxPrice, maxStops, airlines, departureTimeRange, durationRange)"
+//	@Param			request	body		SearchFlightsRequest	true	"Search criteria with optional filters (maxPrice, maxStops, airlines, departureTimeRange, arrivalTimeRange, durationRange)"
 //	@Success		200		{object}	SwaggerSearchResponse	"Successful search with flight results"
 //	@Failure		400		{object}	SwaggerErrorResponse	"Validation error - invalid request parameters"
 //	@Failure		503		{object}	SwaggerErrorResponse	"Service unavailable - all providers failed"
