@@ -24,7 +24,7 @@ const docTemplate = `{
     "paths": {
         "/flights/search": {
             "post": {
-                "description": "Search for available flights across multiple airline providers (Garuda, Lion Air, Batik Air, AirAsia)",
+                "description": "Search for available flights across multiple airline providers (Garuda, Lion Air, Batik Air, AirAsia). Supports filtering by price, stops, airlines, departure time, and flight duration.",
                 "consumes": [
                     "application/json"
                 ],
@@ -37,12 +37,12 @@ const docTemplate = `{
                 "summary": "Search for flights",
                 "parameters": [
                     {
-                        "description": "Search criteria",
+                        "description": "Search criteria with optional filters (maxPrice, maxStops, airlines, departureTimeRange, durationRange)",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/http.SearchFlightsRequest"
+                            "$ref": "#/definitions/internal_adapter_http.SearchFlightsRequest"
                         }
                     }
                 ],
@@ -50,25 +50,25 @@ const docTemplate = `{
                     "200": {
                         "description": "Successful search with flight results",
                         "schema": {
-                            "$ref": "#/definitions/http.SwaggerSearchResponse"
+                            "$ref": "#/definitions/internal_adapter_http.SwaggerSearchResponse"
                         }
                     },
                     "400": {
                         "description": "Validation error - invalid request parameters",
                         "schema": {
-                            "$ref": "#/definitions/http.SwaggerErrorResponse"
+                            "$ref": "#/definitions/internal_adapter_http.SwaggerErrorResponse"
                         }
                     },
                     "503": {
                         "description": "Service unavailable - all providers failed",
                         "schema": {
-                            "$ref": "#/definitions/http.SwaggerErrorResponse"
+                            "$ref": "#/definitions/internal_adapter_http.SwaggerErrorResponse"
                         }
                     },
                     "504": {
                         "description": "Gateway timeout - request took too long",
                         "schema": {
-                            "$ref": "#/definitions/http.SwaggerErrorResponse"
+                            "$ref": "#/definitions/internal_adapter_http.SwaggerErrorResponse"
                         }
                     }
                 }
@@ -76,7 +76,22 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "http.FilterDTO": {
+        "internal_adapter_http.DurationRangeDTO": {
+            "type": "object",
+            "properties": {
+                "maxMinutes": {
+                    "description": "MaxMinutes is the maximum acceptable flight duration in minutes\nExample: 180 (3 hours)",
+                    "type": "integer",
+                    "example": 180
+                },
+                "minMinutes": {
+                    "description": "MinMinutes is the minimum acceptable flight duration in minutes\nExample: 60 (1 hour)",
+                    "type": "integer",
+                    "example": 60
+                }
+            }
+        },
+        "internal_adapter_http.FilterDTO": {
             "type": "object",
             "properties": {
                 "airlines": {
@@ -84,27 +99,41 @@ const docTemplate = `{
                     "type": "array",
                     "items": {
                         "type": "string"
-                    }
+                    },
+                    "example": [
+                        "GA",
+                        "JT"
+                    ]
                 },
                 "departureTimeRange": {
                     "description": "DepartureTimeRange filters flights departing within a time window",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/http.TimeRangeDTO"
+                            "$ref": "#/definitions/internal_adapter_http.TimeRangeDTO"
+                        }
+                    ]
+                },
+                "durationRange": {
+                    "description": "DurationRange filters flights by total duration in minutes",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/internal_adapter_http.DurationRangeDTO"
                         }
                     ]
                 },
                 "maxPrice": {
                     "description": "MaxPrice filters flights with price above this amount",
-                    "type": "number"
+                    "type": "number",
+                    "example": 1000000
                 },
                 "maxStops": {
                     "description": "MaxStops filters flights with more stops than this value (0 = direct only)",
-                    "type": "integer"
+                    "type": "integer",
+                    "example": 0
                 }
             }
         },
-        "http.SearchFlightsRequest": {
+        "internal_adapter_http.SearchFlightsRequest": {
             "type": "object",
             "properties": {
                 "class": {
@@ -123,7 +152,7 @@ const docTemplate = `{
                     "description": "Filters contains optional filtering criteria",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/http.FilterDTO"
+                            "$ref": "#/definitions/internal_adapter_http.FilterDTO"
                         }
                     ]
                 },
@@ -141,7 +170,7 @@ const docTemplate = `{
                 }
             }
         },
-        "http.SwaggerAirlineInfo": {
+        "internal_adapter_http.SwaggerAirlineInfo": {
             "description": "Airline information",
             "type": "object",
             "properties": {
@@ -162,7 +191,7 @@ const docTemplate = `{
                 }
             }
         },
-        "http.SwaggerBaggageInfo": {
+        "internal_adapter_http.SwaggerBaggageInfo": {
             "description": "Baggage allowance information",
             "type": "object",
             "properties": {
@@ -178,7 +207,7 @@ const docTemplate = `{
                 }
             }
         },
-        "http.SwaggerDurationInfo": {
+        "internal_adapter_http.SwaggerDurationInfo": {
             "description": "Flight duration information",
             "type": "object",
             "properties": {
@@ -194,7 +223,7 @@ const docTemplate = `{
                 }
             }
         },
-        "http.SwaggerErrorDetail": {
+        "internal_adapter_http.SwaggerErrorDetail": {
             "description": "Error details",
             "type": "object",
             "properties": {
@@ -217,7 +246,7 @@ const docTemplate = `{
                 }
             }
         },
-        "http.SwaggerErrorResponse": {
+        "internal_adapter_http.SwaggerErrorResponse": {
             "description": "Error response from the API",
             "type": "object",
             "properties": {
@@ -225,7 +254,7 @@ const docTemplate = `{
                     "description": "Error contains error details",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/http.SwaggerErrorDetail"
+                            "$ref": "#/definitions/internal_adapter_http.SwaggerErrorDetail"
                         }
                     ]
                 },
@@ -236,7 +265,7 @@ const docTemplate = `{
                 }
             }
         },
-        "http.SwaggerFlight": {
+        "internal_adapter_http.SwaggerFlight": {
             "description": "Flight information from an airline provider",
             "type": "object",
             "properties": {
@@ -244,7 +273,7 @@ const docTemplate = `{
                     "description": "Airline contains information about the operating airline",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/http.SwaggerAirlineInfo"
+                            "$ref": "#/definitions/internal_adapter_http.SwaggerAirlineInfo"
                         }
                     ]
                 },
@@ -252,7 +281,7 @@ const docTemplate = `{
                     "description": "Arrival contains arrival airport and time information",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/http.SwaggerFlightPoint"
+                            "$ref": "#/definitions/internal_adapter_http.SwaggerFlightPoint"
                         }
                     ]
                 },
@@ -260,7 +289,7 @@ const docTemplate = `{
                     "description": "Baggage contains baggage allowance information",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/http.SwaggerBaggageInfo"
+                            "$ref": "#/definitions/internal_adapter_http.SwaggerBaggageInfo"
                         }
                     ]
                 },
@@ -273,7 +302,7 @@ const docTemplate = `{
                     "description": "Departure contains departure airport and time information",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/http.SwaggerFlightPoint"
+                            "$ref": "#/definitions/internal_adapter_http.SwaggerFlightPoint"
                         }
                     ]
                 },
@@ -281,7 +310,7 @@ const docTemplate = `{
                     "description": "Duration contains the total flight duration",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/http.SwaggerDurationInfo"
+                            "$ref": "#/definitions/internal_adapter_http.SwaggerDurationInfo"
                         }
                     ]
                 },
@@ -299,7 +328,7 @@ const docTemplate = `{
                     "description": "Price contains pricing information",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/http.SwaggerPriceInfo"
+                            "$ref": "#/definitions/internal_adapter_http.SwaggerPriceInfo"
                         }
                     ]
                 },
@@ -320,7 +349,7 @@ const docTemplate = `{
                 }
             }
         },
-        "http.SwaggerFlightPoint": {
+        "internal_adapter_http.SwaggerFlightPoint": {
             "description": "Departure or arrival point information",
             "type": "object",
             "properties": {
@@ -351,7 +380,7 @@ const docTemplate = `{
                 }
             }
         },
-        "http.SwaggerPriceInfo": {
+        "internal_adapter_http.SwaggerPriceInfo": {
             "description": "Price information",
             "type": "object",
             "properties": {
@@ -372,7 +401,7 @@ const docTemplate = `{
                 }
             }
         },
-        "http.SwaggerSearchMetadata": {
+        "internal_adapter_http.SwaggerSearchMetadata": {
             "description": "Metadata about the search execution",
             "type": "object",
             "properties": {
@@ -411,7 +440,7 @@ const docTemplate = `{
                 }
             }
         },
-        "http.SwaggerSearchResponse": {
+        "internal_adapter_http.SwaggerSearchResponse": {
             "description": "Flight search results with metadata",
             "type": "object",
             "properties": {
@@ -419,20 +448,20 @@ const docTemplate = `{
                     "description": "Flights contains the list of flight results after filtering and sorting",
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/http.SwaggerFlight"
+                        "$ref": "#/definitions/internal_adapter_http.SwaggerFlight"
                     }
                 },
                 "metadata": {
                     "description": "Metadata contains information about the search execution",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/http.SwaggerSearchMetadata"
+                            "$ref": "#/definitions/internal_adapter_http.SwaggerSearchMetadata"
                         }
                     ]
                 }
             }
         },
-        "http.TimeRangeDTO": {
+        "internal_adapter_http.TimeRangeDTO": {
             "type": "object",
             "properties": {
                 "end": {

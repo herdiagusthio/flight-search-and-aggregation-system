@@ -34,18 +34,22 @@ type SearchFlightsRequest struct {
 }
 
 // FilterDTO represents optional filters for flight search.
+// Example: {"maxPrice": 1000000, "maxStops": 0, "durationRange": {"maxMinutes": 180}}
 type FilterDTO struct {
 	// MaxPrice filters flights with price above this amount
-	MaxPrice *float64 `json:"maxPrice,omitempty"`
+	MaxPrice *float64 `json:"maxPrice,omitempty" example:"1000000"`
 
 	// MaxStops filters flights with more stops than this value (0 = direct only)
-	MaxStops *int `json:"maxStops,omitempty"`
+	MaxStops *int `json:"maxStops,omitempty" example:"0"`
 
 	// Airlines filters to only include flights from these airline codes
-	Airlines []string `json:"airlines,omitempty"`
+	Airlines []string `json:"airlines,omitempty" example:"GA,JT"`
 
 	// DepartureTimeRange filters flights departing within a time window
 	DepartureTimeRange *TimeRangeDTO `json:"departureTimeRange,omitempty"`
+
+	// DurationRange filters flights by total duration in minutes
+	DurationRange *DurationRangeDTO `json:"durationRange,omitempty"`
 }
 
 // TimeRangeDTO represents a time window for filtering.
@@ -55,6 +59,18 @@ type TimeRangeDTO struct {
 
 	// End is the end of the time range (HH:MM format, e.g., "12:00")
 	End string `json:"end"`
+}
+
+// DurationRangeDTO represents a duration range filter in minutes.
+// Example: {"minMinutes": 60, "maxMinutes": 180} filters flights between 1-3 hours.
+type DurationRangeDTO struct {
+	// MinMinutes is the minimum acceptable flight duration in minutes
+	// Example: 60 (1 hour)
+	MinMinutes *int `json:"minMinutes,omitempty" example:"60"`
+
+	// MaxMinutes is the maximum acceptable flight duration in minutes
+	// Example: 180 (3 hours)
+	MaxMinutes *int `json:"maxMinutes,omitempty" example:"180"`
 }
 
 // Validation regex patterns.
@@ -260,6 +276,11 @@ func (r *SearchFlightsRequest) validateFilters(errs *ValidationErrors) {
 	if r.Filters.DepartureTimeRange != nil {
 		r.validateTimeRange(errs)
 	}
+
+	// Validate duration range
+	if r.Filters.DurationRange != nil {
+		r.validateDurationRange(errs)
+	}
 }
 
 func (r *SearchFlightsRequest) validateTimeRange(errs *ValidationErrors) {
@@ -275,5 +296,30 @@ func (r *SearchFlightsRequest) validateTimeRange(errs *ValidationErrors) {
 		errs.Add("filters.departureTimeRange.end", "end time is required when departureTimeRange is specified")
 	} else if !timePattern.MatchString(tr.End) {
 		errs.Add("filters.departureTimeRange.end", "end must be in HH:MM format")
+	}
+}
+
+func (r *SearchFlightsRequest) validateDurationRange(errs *ValidationErrors) {
+	dr := r.Filters.DurationRange
+
+	// Validate minimum duration
+	if dr.MinMinutes != nil {
+		if *dr.MinMinutes < 0 {
+			errs.Add("filters.durationRange.minMinutes", "minMinutes must be a non-negative number")
+		}
+	}
+
+	// Validate maximum duration
+	if dr.MaxMinutes != nil {
+		if *dr.MaxMinutes < 0 {
+			errs.Add("filters.durationRange.maxMinutes", "maxMinutes must be a non-negative number")
+		}
+	}
+
+	// Validate that min <= max if both are provided
+	if dr.MinMinutes != nil && dr.MaxMinutes != nil {
+		if *dr.MinMinutes > *dr.MaxMinutes {
+			errs.Add("filters.durationRange", "minMinutes must be less than or equal to maxMinutes")
+		}
 	}
 }

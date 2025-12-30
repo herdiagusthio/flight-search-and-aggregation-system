@@ -191,6 +191,7 @@ Content-Type: application/json
 | `maxStops` | integer | Maximum number of stops (0 = direct only) |
 | `airlines` | array | List of airline codes to include (e.g., ["GA", "JT"]) |
 | `departureTimeRange` | object | Time range filter with `start` and `end` (HH:MM format) |
+| `durationRange` | object | Duration range filter with `minMinutes` and/or `maxMinutes` |
 
 #### Sort Options
 
@@ -266,6 +267,49 @@ curl -X POST http://localhost:8080/api/v1/flights/search \
       }
     },
     "sortBy": "departure"
+  }'
+```
+
+```bash
+# Short flights with duration range filter
+curl -X POST http://localhost:8080/api/v1/flights/search \
+  -H "Content-Type: application/json" \
+  -d '{
+    "origin": "CGK",
+    "destination": "DPS",
+    "departureDate": "2025-12-15",
+    "passengers": 1,
+    "filters": {
+      "durationRange": {
+        "minMinutes": 60,
+        "maxMinutes": 180
+      }
+    },
+    "sortBy": "duration"
+  }'
+```
+
+```bash
+# Combined filters: budget flights under 3 hours, morning departure
+curl -X POST http://localhost:8080/api/v1/flights/search \
+  -H "Content-Type: application/json" \
+  -d '{
+    "origin": "CGK",
+    "destination": "DPS",
+    "departureDate": "2025-12-15",
+    "passengers": 1,
+    "filters": {
+      "maxPrice": 1000000,
+      "maxStops": 0,
+      "durationRange": {
+        "maxMinutes": 180
+      },
+      "departureTimeRange": {
+        "start": "06:00",
+        "end": "12:00"
+      }
+    },
+    "sortBy": "price"
   }'
 ```
 

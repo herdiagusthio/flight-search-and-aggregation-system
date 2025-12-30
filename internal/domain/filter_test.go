@@ -238,3 +238,160 @@ func TestFilterOptions_MatchesFlight(t *testing.T) {
 		})
 	}
 }
+
+func TestDurationRange_IsValid(t *testing.T) {
+	intPtr := func(i int) *int { return &i }
+
+	tests := []struct {
+		name string
+		dr   *DurationRange
+		want bool
+	}{
+		{
+			name: "nil duration range is valid",
+			dr:   nil,
+			want: true,
+		},
+		{
+			name: "valid range with both min and max",
+			dr:   &DurationRange{MinMinutes: intPtr(60), MaxMinutes: intPtr(180)},
+			want: true,
+		},
+		{
+			name: "valid range with only min",
+			dr:   &DurationRange{MinMinutes: intPtr(60)},
+			want: true,
+		},
+		{
+			name: "valid range with only max",
+			dr:   &DurationRange{MaxMinutes: intPtr(180)},
+			want: true,
+		},
+		{
+			name: "valid range with zero min",
+			dr:   &DurationRange{MinMinutes: intPtr(0), MaxMinutes: intPtr(180)},
+			want: true,
+		},
+		{
+			name: "invalid range - negative min",
+			dr:   &DurationRange{MinMinutes: intPtr(-10), MaxMinutes: intPtr(180)},
+			want: false,
+		},
+		{
+			name: "invalid range - negative max",
+			dr:   &DurationRange{MinMinutes: intPtr(60), MaxMinutes: intPtr(-10)},
+			want: false,
+		},
+		{
+			name: "invalid range - min greater than max",
+			dr:   &DurationRange{MinMinutes: intPtr(200), MaxMinutes: intPtr(100)},
+			want: false,
+		},
+		{
+			name: "valid range - min equals max",
+			dr:   &DurationRange{MinMinutes: intPtr(120), MaxMinutes: intPtr(120)},
+			want: true,
+		},
+		{
+			name: "empty duration range (both nil) is valid",
+			dr:   &DurationRange{},
+			want: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, tt.dr.IsValid())
+		})
+	}
+}
+
+func TestDurationRange_Contains(t *testing.T) {
+	intPtr := func(i int) *int { return &i }
+
+	tests := []struct {
+		name            string
+		dr              *DurationRange
+		durationMinutes int
+		want            bool
+	}{
+		{
+			name:            "nil duration range contains all",
+			dr:              nil,
+			durationMinutes: 100,
+			want:            true,
+		},
+		{
+			name:            "duration within range (both bounds)",
+			dr:              &DurationRange{MinMinutes: intPtr(60), MaxMinutes: intPtr(180)},
+			durationMinutes: 120,
+			want:            true,
+		},
+		{
+			name:            "duration at min boundary",
+			dr:              &DurationRange{MinMinutes: intPtr(60), MaxMinutes: intPtr(180)},
+			durationMinutes: 60,
+			want:            true,
+		},
+		{
+			name:            "duration at max boundary",
+			dr:              &DurationRange{MinMinutes: intPtr(60), MaxMinutes: intPtr(180)},
+			durationMinutes: 180,
+			want:            true,
+		},
+		{
+			name:            "duration below min",
+			dr:              &DurationRange{MinMinutes: intPtr(60), MaxMinutes: intPtr(180)},
+			durationMinutes: 30,
+			want:            false,
+		},
+		{
+			name:            "duration above max",
+			dr:              &DurationRange{MinMinutes: intPtr(60), MaxMinutes: intPtr(180)},
+			durationMinutes: 200,
+			want:            false,
+		},
+		{
+			name:            "only min specified - duration above min",
+			dr:              &DurationRange{MinMinutes: intPtr(60)},
+			durationMinutes: 120,
+			want:            true,
+		},
+		{
+			name:            "only min specified - duration below min",
+			dr:              &DurationRange{MinMinutes: intPtr(60)},
+			durationMinutes: 30,
+			want:            false,
+		},
+		{
+			name:            "only max specified - duration below max",
+			dr:              &DurationRange{MaxMinutes: intPtr(180)},
+			durationMinutes: 120,
+			want:            true,
+		},
+		{
+			name:            "only max specified - duration above max",
+			dr:              &DurationRange{MaxMinutes: intPtr(180)},
+			durationMinutes: 200,
+			want:            false,
+		},
+		{
+			name:            "zero duration with zero min",
+			dr:              &DurationRange{MinMinutes: intPtr(0), MaxMinutes: intPtr(180)},
+			durationMinutes: 0,
+			want:            true,
+		},
+		{
+			name:            "empty duration range (no bounds) contains all",
+			dr:              &DurationRange{},
+			durationMinutes: 500,
+			want:            true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, tt.dr.Contains(tt.durationMinutes))
+		})
+	}
+}

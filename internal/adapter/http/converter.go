@@ -47,6 +47,11 @@ func ToDomainFilters(dto *FilterDTO) *domain.FilterOptions {
 		opts.DepartureTimeRange = toDomainTimeRange(dto.DepartureTimeRange)
 	}
 
+	// Convert duration range if provided
+	if dto.DurationRange != nil {
+		opts.DurationRange = toDomainDurationRange(dto.DurationRange)
+	}
+
 	return opts
 }
 
@@ -71,6 +76,23 @@ func toDomainTimeRange(dto *TimeRangeDTO) *domain.TimeRange {
 	return &domain.TimeRange{
 		Start: startTime,
 		End:   endTime,
+	}
+}
+
+// toDomainDurationRange converts a DurationRangeDTO to domain.DurationRange.
+func toDomainDurationRange(dto *DurationRangeDTO) *domain.DurationRange {
+	if dto == nil {
+		return nil
+	}
+
+	// Return nil if both fields are nil (no filter)
+	if dto.MinMinutes == nil && dto.MaxMinutes == nil {
+		return nil
+	}
+
+	return &domain.DurationRange{
+		MinMinutes: dto.MinMinutes,
+		MaxMinutes: dto.MaxMinutes,
 	}
 }
 

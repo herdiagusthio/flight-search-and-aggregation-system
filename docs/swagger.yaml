@@ -1,25 +1,49 @@
 basePath: /api/v1
 definitions:
-  http.FilterDTO:
+  internal_adapter_http.DurationRangeDTO:
+    properties:
+      maxMinutes:
+        description: |-
+          MaxMinutes is the maximum acceptable flight duration in minutes
+          Example: 180 (3 hours)
+        example: 180
+        type: integer
+      minMinutes:
+        description: |-
+          MinMinutes is the minimum acceptable flight duration in minutes
+          Example: 60 (1 hour)
+        example: 60
+        type: integer
+    type: object
+  internal_adapter_http.FilterDTO:
     properties:
       airlines:
         description: Airlines filters to only include flights from these airline codes
+        example:
+        - GA
+        - JT
         items:
           type: string
         type: array
       departureTimeRange:
         allOf:
-        - $ref: '#/definitions/http.TimeRangeDTO'
+        - $ref: '#/definitions/internal_adapter_http.TimeRangeDTO'
         description: DepartureTimeRange filters flights departing within a time window
+      durationRange:
+        allOf:
+        - $ref: '#/definitions/internal_adapter_http.DurationRangeDTO'
+        description: DurationRange filters flights by total duration in minutes
       maxPrice:
         description: MaxPrice filters flights with price above this amount
+        example: 1000000
         type: number
       maxStops:
         description: MaxStops filters flights with more stops than this value (0 =
           direct only)
+        example: 0
         type: integer
     type: object
-  http.SearchFlightsRequest:
+  internal_adapter_http.SearchFlightsRequest:
     properties:
       class:
         description: 'Class is the travel class: economy, business, or first (optional)'
@@ -32,7 +56,7 @@ definitions:
         type: string
       filters:
         allOf:
-        - $ref: '#/definitions/http.FilterDTO'
+        - $ref: '#/definitions/internal_adapter_http.FilterDTO'
         description: Filters contains optional filtering criteria
       origin:
         description: Origin is the IATA code of the departure airport (e.g., "CGK")
@@ -45,7 +69,7 @@ definitions:
           departure'
         type: string
     type: object
-  http.SwaggerAirlineInfo:
+  internal_adapter_http.SwaggerAirlineInfo:
     description: Airline information
     properties:
       code:
@@ -61,7 +85,7 @@ definitions:
         example: Garuda Indonesia
         type: string
     type: object
-  http.SwaggerBaggageInfo:
+  internal_adapter_http.SwaggerBaggageInfo:
     description: Baggage allowance information
     properties:
       cabin:
@@ -73,7 +97,7 @@ definitions:
         example: 20
         type: integer
     type: object
-  http.SwaggerDurationInfo:
+  internal_adapter_http.SwaggerDurationInfo:
     description: Flight duration information
     properties:
       display:
@@ -85,7 +109,7 @@ definitions:
         example: 95
         type: integer
     type: object
-  http.SwaggerErrorDetail:
+  internal_adapter_http.SwaggerErrorDetail:
     description: Error details
     properties:
       code:
@@ -102,32 +126,32 @@ definitions:
         example: Request validation failed
         type: string
     type: object
-  http.SwaggerErrorResponse:
+  internal_adapter_http.SwaggerErrorResponse:
     description: Error response from the API
     properties:
       error:
         allOf:
-        - $ref: '#/definitions/http.SwaggerErrorDetail'
+        - $ref: '#/definitions/internal_adapter_http.SwaggerErrorDetail'
         description: Error contains error details
       success:
         description: Success is always false for error responses
         example: false
         type: boolean
     type: object
-  http.SwaggerFlight:
+  internal_adapter_http.SwaggerFlight:
     description: Flight information from an airline provider
     properties:
       airline:
         allOf:
-        - $ref: '#/definitions/http.SwaggerAirlineInfo'
+        - $ref: '#/definitions/internal_adapter_http.SwaggerAirlineInfo'
         description: Airline contains information about the operating airline
       arrival:
         allOf:
-        - $ref: '#/definitions/http.SwaggerFlightPoint'
+        - $ref: '#/definitions/internal_adapter_http.SwaggerFlightPoint'
         description: Arrival contains arrival airport and time information
       baggage:
         allOf:
-        - $ref: '#/definitions/http.SwaggerBaggageInfo'
+        - $ref: '#/definitions/internal_adapter_http.SwaggerBaggageInfo'
         description: Baggage contains baggage allowance information
       class:
         description: Class is the travel class
@@ -135,11 +159,11 @@ definitions:
         type: string
       departure:
         allOf:
-        - $ref: '#/definitions/http.SwaggerFlightPoint'
+        - $ref: '#/definitions/internal_adapter_http.SwaggerFlightPoint'
         description: Departure contains departure airport and time information
       duration:
         allOf:
-        - $ref: '#/definitions/http.SwaggerDurationInfo'
+        - $ref: '#/definitions/internal_adapter_http.SwaggerDurationInfo'
         description: Duration contains the total flight duration
       flightNumber:
         description: FlightNumber is the airline's flight number
@@ -151,7 +175,7 @@ definitions:
         type: string
       price:
         allOf:
-        - $ref: '#/definitions/http.SwaggerPriceInfo'
+        - $ref: '#/definitions/internal_adapter_http.SwaggerPriceInfo'
         description: Price contains pricing information
       provider:
         description: Provider identifies which flight provider this result came from
@@ -166,7 +190,7 @@ definitions:
         example: 0
         type: integer
     type: object
-  http.SwaggerFlightPoint:
+  internal_adapter_http.SwaggerFlightPoint:
     description: Departure or arrival point information
     properties:
       airportCode:
@@ -190,7 +214,7 @@ definitions:
         example: Asia/Jakarta
         type: string
     type: object
-  http.SwaggerPriceInfo:
+  internal_adapter_http.SwaggerPriceInfo:
     description: Price information
     properties:
       amount:
@@ -206,7 +230,7 @@ definitions:
         example: IDR 1,250,000
         type: string
     type: object
-  http.SwaggerSearchMetadata:
+  internal_adapter_http.SwaggerSearchMetadata:
     description: Metadata about the search execution
     properties:
       providersFailed:
@@ -236,21 +260,21 @@ definitions:
         example: 15
         type: integer
     type: object
-  http.SwaggerSearchResponse:
+  internal_adapter_http.SwaggerSearchResponse:
     description: Flight search results with metadata
     properties:
       flights:
         description: Flights contains the list of flight results after filtering and
           sorting
         items:
-          $ref: '#/definitions/http.SwaggerFlight'
+          $ref: '#/definitions/internal_adapter_http.SwaggerFlight'
         type: array
       metadata:
         allOf:
-        - $ref: '#/definitions/http.SwaggerSearchMetadata'
+        - $ref: '#/definitions/internal_adapter_http.SwaggerSearchMetadata'
         description: Metadata contains information about the search execution
     type: object
-  http.TimeRangeDTO:
+  internal_adapter_http.TimeRangeDTO:
     properties:
       end:
         description: End is the end of the time range (HH:MM format, e.g., "12:00")
@@ -281,33 +305,35 @@ paths:
       consumes:
       - application/json
       description: Search for available flights across multiple airline providers
-        (Garuda, Lion Air, Batik Air, AirAsia)
+        (Garuda, Lion Air, Batik Air, AirAsia). Supports filtering by price, stops,
+        airlines, departure time, and flight duration.
       parameters:
-      - description: Search criteria
+      - description: Search criteria with optional filters (maxPrice, maxStops, airlines,
+          departureTimeRange, durationRange)
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/http.SearchFlightsRequest'
+          $ref: '#/definitions/internal_adapter_http.SearchFlightsRequest'
       produces:
       - application/json
       responses:
         "200":
           description: Successful search with flight results
           schema:
-            $ref: '#/definitions/http.SwaggerSearchResponse'
+            $ref: '#/definitions/internal_adapter_http.SwaggerSearchResponse'
         "400":
           description: Validation error - invalid request parameters
           schema:
-            $ref: '#/definitions/http.SwaggerErrorResponse'
+            $ref: '#/definitions/internal_adapter_http.SwaggerErrorResponse'
         "503":
           description: Service unavailable - all providers failed
           schema:
-            $ref: '#/definitions/http.SwaggerErrorResponse'
+            $ref: '#/definitions/internal_adapter_http.SwaggerErrorResponse'
         "504":
           description: Gateway timeout - request took too long
           schema:
-            $ref: '#/definitions/http.SwaggerErrorResponse'
+            $ref: '#/definitions/internal_adapter_http.SwaggerErrorResponse'
       summary: Search for flights
       tags:
       - flights

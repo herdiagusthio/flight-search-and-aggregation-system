@@ -48,6 +48,9 @@ type FilterOptions struct {
 
 	// DepartureTimeRange filters flights departing within this time range
 	DepartureTimeRange *TimeRange `json:"departureTimeRange,omitempty"`
+
+	// DurationRange filters flights by total duration in minutes
+	DurationRange *DurationRange `json:"durationRange,omitempty"`
 }
 
 // TimeRange represents a time window for filtering.
@@ -57,6 +60,59 @@ type TimeRange struct {
 
 	// End is the end of the time range (inclusive)
 	End time.Time `json:"end"`
+}
+
+// DurationRange represents a duration range filter for flights.
+type DurationRange struct {
+	// MinMinutes is the minimum acceptable flight duration in minutes (inclusive)
+	MinMinutes *int `json:"minMinutes,omitempty"`
+
+	// MaxMinutes is the maximum acceptable flight duration in minutes (inclusive)
+	MaxMinutes *int `json:"maxMinutes,omitempty"`
+}
+
+// IsValid checks if the duration range is valid.
+// Returns false if min > max, or if any values are negative.
+func (dr *DurationRange) IsValid() bool {
+	if dr == nil {
+		return true
+	}
+
+	// Check for negative values
+	if dr.MinMinutes != nil && *dr.MinMinutes < 0 {
+		return false
+	}
+	if dr.MaxMinutes != nil && *dr.MaxMinutes < 0 {
+		return false
+	}
+
+	// Check min <= max if both are provided
+	if dr.MinMinutes != nil && dr.MaxMinutes != nil {
+		if *dr.MinMinutes > *dr.MaxMinutes {
+			return false
+		}
+	}
+
+	return true
+}
+
+// Contains checks if a given duration (in minutes) falls within the range.
+func (dr *DurationRange) Contains(durationMinutes int) bool {
+	if dr == nil {
+		return true
+	}
+
+	// Check minimum duration
+	if dr.MinMinutes != nil && durationMinutes < *dr.MinMinutes {
+		return false
+	}
+
+	// Check maximum duration
+	if dr.MaxMinutes != nil && durationMinutes > *dr.MaxMinutes {
+		return false
+	}
+
+	return true
 }
 
 // Contains checks if a given time falls within the time range.
@@ -110,6 +166,11 @@ func (f *FilterOptions) MatchesFlight(flight Flight) bool {
 
 	// Check departure time range filter
 	if f.DepartureTimeRange != nil && !f.DepartureTimeRange.Contains(flight.Departure.DateTime) {
+	// Check duration range filter
+	if f.DurationRange != nil && !f.DurationRange.Contains(flight.Duration.TotalMinutes) {
+		return false
+	}
+
 		return false
 	}
 

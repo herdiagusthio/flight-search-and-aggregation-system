@@ -68,6 +68,11 @@ func passesAllFilters(f domain.Flight, opts *domain.FilterOptions, airlineSet ma
 		return false
 	}
 
+	// Duration range filter: include flights with duration within the range
+	if opts.DurationRange != nil && !opts.DurationRange.Contains(f.Duration.TotalMinutes) {
+		return false
+	}
+
 	return true
 }
 
@@ -151,6 +156,22 @@ func FilterByDepartureTime(flights []domain.Flight, timeRange *domain.TimeRange)
 	result := make([]domain.Flight, 0, len(flights))
 	for _, f := range flights {
 		if timeRange.Contains(f.Departure.DateTime) {
+			result = append(result, f)
+		}
+	}
+	return result
+}
+
+// FilterByDuration filters flights by duration range in minutes.
+// Returns all flights if durationRange is nil.
+func FilterByDuration(flights []domain.Flight, durationRange *domain.DurationRange) []domain.Flight {
+	if durationRange == nil {
+		return flights
+	}
+
+	result := make([]domain.Flight, 0, len(flights))
+	for _, f := range flights {
+		if durationRange.Contains(f.Duration.TotalMinutes) {
 			result = append(result, f)
 		}
 	}

@@ -437,3 +437,192 @@ func TestHandler_SortingApplied(t *testing.T) {
 	assert.Equal(t, 1000000.0, searchResp.Flights[1].Price.Amount)
 	assert.Equal(t, 1500000.0, searchResp.Flights[2].Price.Amount)
 }
+
+// TestHandler_DurationRangeFilter tests duration range filtering via HTTP.
+func TestHandler_DurationRangeFilter(t *testing.T) {
+	// Arrange - Create flights with different durations
+	flights := []domain.Flight{
+		{ID: "1", FlightNumber: "GA 100", Price: domain.PriceInfo{Amount: 1000000, Currency: "IDR"}, Duration: domain.DurationInfo{TotalMinutes: 90}, Provider: "garuda"},   // 1.5h
+		{ID: "2", FlightNumber: "GA 101", Price: domain.PriceInfo{Amount: 1000000, Currency: "IDR"}, Duration: domain.DurationInfo{TotalMinutes: 120}, Provider: "garuda"},  // 2h
+		{ID: "3", FlightNumber: "GA 102", Price: domain.PriceInfo{Amount: 1000000, Currency: "IDR"}, Duration: domain.DurationInfo{TotalMinutes: 180}, Provider: "garuda"},  // 3h
+		{ID: "4", FlightNumber: "GA 103", Price: domain.PriceInfo{Amount: 1000000, Currency: "IDR"}, Duration: domain.DurationInfo{TotalMinutes: 240}, Provider: "garuda"},  // 4h
+		{ID: "5", FlightNumber: "GA 104", Price: domain.PriceInfo{Amount: 1000000, Currency: "IDR"}, Duration: domain.DurationInfo{TotalMinutes: 360}, Provider: "garuda"},  // 6h
+	}
+
+	provider := mock.NewProvider("garuda").WithFlights(flights)
+	uc := CreateUseCase([]domain.FlightProvider{provider})
+	ts := NewTestServer(uc)
+
+	tests := []struct {
+		name           string
+		durationFilter map[string]interface{}
+		expectedIDs    []string
+	}{
+		{
+			name: "only min duration",
+			durationFilter: map[string]interface{}{
+				"minMinutes": 120,
+			},
+			expectedIDs: []string{"2", "3", "4", "5"},
+		},
+		{
+			name: "only max duration",
+			durationFilter: map[string]interface{}{
+				"maxMinutes": 240,
+			},
+			expectedIDs: []string{"1", "2", "3", "4"},
+		},
+		{
+			name: "both min and max duration",
+			durationFilter: map[string]interface{}{
+				"minMinutes": 120,
+				"maxMinutes": 240,
+			},
+			expectedIDs: []string{"2", "3", "4"},
+		},
+		{
+			name: "narrow range",
+			durationFilter: map[string]interface{}{
+				"minMinutes": 175,
+				"maxMinutes": 185,
+			},
+			expectedIDs: []string{"3"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Request with duration filter
+			req := map[string]interface{}{
+				"origin":        "CGK",
+				"destination":   "DPS",
+				"departureDate": FutureDate(),
+				"passengers":    1,
+				"filters": map[string]interface{}{
+					"durationRange": tt.durationFilter,
+				},
+			}
+
+			// Act
+			resp := ts.SearchRequest(req)
+
+			// Assert
+			assert.Equal(t, http.StatusOK, resp.Code)
+
+			searchResp, err := resp.ParseSearchResponse()
+			require.NoError(t, err)
+			assert.Len(t, searchResp.Flights, len(tt.expectedIDs))
+
+			// Extract IDs
+			resultIDs := make([]string, len(searchResp.Flights))
+			for i, f := range searchResp.Flights {
+				resultIDs[i] = f.ID
+			}
+
+			assert.ElementsMatch(t, tt.expectedIDs, resultIDs)
+		})
+	}
+}
+
+// TestHandler_CombinedFiltersWithDuration tests combining duration with other filters.
+func TestHandler_CombinedFiltersWithDuration(t *testing.T) {
+	// Arrange
+	flights := []domain.Flight{
+		{ID: "1", FlightNumber: "GA 100", Price: domain.PriceInfo{Amount: 800000, Currency: "IDR"}, Duration: domain.DurationInfo{TotalMinutes: 120}, Stops: 0, Provider: "garuda"},
+		{ID: "2", FlightNumber: "GA 101", Price: domain.PriceInfo{Amount: 1200000, Currency: "IDR"}, Duration: domain.DurationInfo{TotalMinutes: 180}, Stops: 1, Provider: "garuda"},
+		{ID: "3", FlightNumber: "GA 102", Price: domain.PriceInfo{Amount: 900000, Currency: "IDR"}, Duration: domain.DurationInfo{TotalMinutes: 240}, Stops: 0, Provider: "garuda"},
+		{ID: "4", FlightNumber: "GA 103", Price: domain.PriceInfo{Amount: 700000, Currency: "IDR"}, Duration: domain.DurationInfo{TotalMinutes: 300}, Stops: 2, Provider: "garuda"},
+	}
+
+	provider := mock.NewProvider("garuda").WithFlights(flights)
+	uc := CreateUseCase([]domain.FlightProvider{provider})
+	ts := NewTestServer(uc)
+
+	// Request with combined filters: duration + price + stops
+	req := map[string]interface{}{
+		"origin":        "CGK",
+		"destination":   "DPS",
+		"departureDate": FutureDate(),
+		"passengers":    1,
+		"filters": map[string]interface{}{
+			"durationRange": map[string]interface{}{
+				"minMinutes": 100,
+				"maxMinutes": 250,
+			},
+			"maxPrice": 1000000,
+			"maxStops": 0,
+		},
+	}
+
+	// Act
+	resp := ts.SearchRequest(req)
+
+	// Assert
+	assert.Equal(t, http.StatusOK, resp.Code)
+
+	searchResp, err := resp.ParseSearchResponse()
+	require.NoError(t, err)
+
+	// Flights that match all criteria:
+	// - Flight ID "1": Duration 120 (within 100-250), Price 800000 (<=1000000), Stops 0 (<=0) ✓
+	// - Flight ID "3": Duration 240 (within 100-250), Price 900000 (<=1000000), Stops 0 (<=0) ✓
+	require.Len(t, searchResp.Flights, 2)
+
+	resultIDs := make([]string, len(searchResp.Flights))
+	for i, f := range searchResp.Flights {
+		resultIDs[i] = f.ID
+	}
+	assert.ElementsMatch(t, []string{"1", "3"}, resultIDs)
+}
+
+// TestHandler_InvalidDurationRange tests validation of invalid duration ranges.
+func TestHandler_InvalidDurationRange(t *testing.T) {
+	provider := mock.NewProvider("garuda").WithFlights(mock.SampleFlights("garuda", 3))
+	uc := CreateUseCase([]domain.FlightProvider{provider})
+	ts := NewTestServer(uc)
+
+	tests := []struct {
+		name           string
+		durationFilter map[string]interface{}
+	}{
+		{
+			name: "negative minMinutes",
+			durationFilter: map[string]interface{}{
+				"minMinutes": -10,
+			},
+		},
+		{
+			name: "negative maxMinutes",
+			durationFilter: map[string]interface{}{
+				"maxMinutes": -50,
+			},
+		},
+		{
+			name: "min greater than max",
+			durationFilter: map[string]interface{}{
+				"minMinutes": 300,
+				"maxMinutes": 100,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := map[string]interface{}{
+				"origin":        "CGK",
+				"destination":   "DPS",
+				"departureDate": FutureDate(),
+				"passengers":    1,
+				"filters": map[string]interface{}{
+					"durationRange": tt.durationFilter,
+				},
+			}
+
+			// Act
+			resp := ts.SearchRequest(req)
+
+			// Assert - Should return 400 Bad Request
+			assert.Equal(t, http.StatusBadRequest, resp.Code)
+		})
+	}
+}

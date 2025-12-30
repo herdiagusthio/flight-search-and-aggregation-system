@@ -507,6 +507,155 @@ func TestIsAirlineInSet(t *testing.T) {
 	}
 }
 
+// TestFilterByDuration tests the duration filter function.
+func TestFilterByDuration(t *testing.T) {
+	// Create flights with different durations
+	createFlightWithDuration := func(id string, durationMinutes int) domain.Flight {
+		f := createFilterTestFlight(id, 1000000, 0, "GA", 8)
+		f.Duration.TotalMinutes = durationMinutes
+		return f
+	}
+
+	flights := []domain.Flight{
+		createFlightWithDuration("1", 60),   // 1 hour
+		createFlightWithDuration("2", 120),  // 2 hours
+		createFlightWithDuration("3", 180),  // 3 hours
+		createFlightWithDuration("4", 240),  // 4 hours
+		createFlightWithDuration("5", 360),  // 6 hours
+	}
+
+	tests := []struct {
+		name          string
+		durationRange *domain.DurationRange
+		expectedIDs   []string
+	}{
+		{
+			name:          "nil duration range returns all flights",
+			durationRange: nil,
+			expectedIDs:   []string{"1", "2", "3", "4", "5"},
+		},
+		{
+			name:          "only min duration - filters flights below minimum",
+			durationRange: &domain.DurationRange{MinMinutes: intPtr(120)},
+			expectedIDs:   []string{"2", "3", "4", "5"},
+		},
+		{
+			name:          "only max duration - filters flights above maximum",
+			durationRange: &domain.DurationRange{MaxMinutes: intPtr(240)},
+			expectedIDs:   []string{"1", "2", "3", "4"},
+		},
+		{
+			name:          "both min and max - filters flights outside range",
+			durationRange: &domain.DurationRange{MinMinutes: intPtr(120), MaxMinutes: intPtr(240)},
+			expectedIDs:   []string{"2", "3", "4"},
+		},
+		{
+			name:          "exact match on boundaries included",
+			durationRange: &domain.DurationRange{MinMinutes: intPtr(60), MaxMinutes: intPtr(180)},
+			expectedIDs:   []string{"1", "2", "3"},
+		},
+		{
+			name:          "narrow range with one match",
+			durationRange: &domain.DurationRange{MinMinutes: intPtr(175), MaxMinutes: intPtr(185)},
+			expectedIDs:   []string{"3"},
+		},
+		{
+			name:          "no flights match the range",
+			durationRange: &domain.DurationRange{MinMinutes: intPtr(400), MaxMinutes: intPtr(500)},
+			expectedIDs:   []string{},
+		},
+		{
+			name:          "empty range (no bounds) returns all",
+			durationRange: &domain.DurationRange{},
+			expectedIDs:   []string{"1", "2", "3", "4", "5"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := FilterByDuration(flights, tt.durationRange)
+
+			assert.Len(t, result, len(tt.expectedIDs))
+
+			resultIDs := make([]string, len(result))
+			for i, f := range result {
+				resultIDs[i] = f.ID
+			}
+
+			assert.ElementsMatch(t, tt.expectedIDs, resultIDs)
+		})
+	}
+}
+
+// TestApplyFilters_DurationRange tests duration range filtering through ApplyFilters.
+func TestApplyFilters_DurationRange(t *testing.T) {
+	createFlightWithDuration := func(id string, price float64, durationMinutes int) domain.Flight {
+		f := createFilterTestFlight(id, price, 0, "GA", 8)
+		f.Duration.TotalMinutes = durationMinutes
+		return f
+	}
+
+	flights := []domain.Flight{
+		createFlightWithDuration("1", 1000000, 90),   // 1.5 hours, cheap
+		createFlightWithDuration("2", 1500000, 120),  // 2 hours, medium
+		createFlightWithDuration("3", 2000000, 180),  // 3 hours, expensive
+		createFlightWithDuration("4", 800000, 240),   // 4 hours, very cheap
+	}
+
+	tests := []struct {
+		name        string
+		opts        *domain.FilterOptions
+		expectedIDs []string
+	}{
+		{
+			name: "duration range only",
+			opts: &domain.FilterOptions{
+				DurationRange: &domain.DurationRange{
+					MinMinutes: intPtr(90),
+					MaxMinutes: intPtr(180),
+				},
+			},
+			expectedIDs: []string{"1", "2", "3"},
+		},
+		{
+			name: "duration + price filter combined",
+			opts: &domain.FilterOptions{
+				DurationRange: &domain.DurationRange{
+					MinMinutes: intPtr(90),
+					MaxMinutes: intPtr(180),
+				},
+				MaxPrice: floatPtr(1500000),
+			},
+			expectedIDs: []string{"1", "2"},
+		},
+		{
+			name: "all filters combined including duration",
+			opts: &domain.FilterOptions{
+				DurationRange: &domain.DurationRange{
+					MinMinutes: intPtr(100),
+					MaxMinutes: intPtr(200),
+				},
+				MaxPrice: floatPtr(2000000),
+				MaxStops: intPtr(1),
+			},
+			expectedIDs: []string{"2", "3"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ApplyFilters(flights, tt.opts)
+
+			resultIDs := make([]string, len(result))
+			for i, f := range result {
+				resultIDs[i] = f.ID
+			}
+
+			assert.ElementsMatch(t, tt.expectedIDs, resultIDs)
+		})
+	}
+}
+
 // TestApplyFilters_Performance verifies O(n) performance characteristic.
 func TestApplyFilters_Performance(t *testing.T) {
 	// Create a large list of flights
